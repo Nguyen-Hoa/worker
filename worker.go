@@ -18,18 +18,20 @@ type Worker struct {
 	_latestCPU   int
 }
 
-func (w *Worker) Init(
-	name string,
-	address string,
-	cpuThresh int,
-	powerThresh int,
-	powerMeterParams powerMeter.WattsupArgs,
-) error {
-	w.name = name
-	w.address = address
-	w.cpuThresh = cpuThresh
-	w.powerThresh = powerThresh
-	w.powerMeter = powerMeter.New(powerMeterParams)
+type WorkerConfig struct {
+	Name        string                 `json:"name"`
+	Address     string                 `json:"address"`
+	CpuThresh   int                    `json:"cpuThresh"`
+	PowerThresh int                    `json:"powerThresh"`
+	Wattsup     powerMeter.WattsupArgs `json:"wattsup"`
+}
+
+func (w *Worker) Init(c WorkerConfig) error {
+	w.name = c.Name
+	w.address = c.Address
+	w.cpuThresh = c.CpuThresh
+	w.powerThresh = c.PowerThresh
+	w.powerMeter = powerMeter.New(c.Wattsup)
 	return nil
 }
 
