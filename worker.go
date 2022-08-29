@@ -33,7 +33,7 @@ func (w *Worker) Init(
 	return nil
 }
 
-func (w *Worker) startMeter() error {
+func (w *Worker) StartMeter() error {
 
 	// Check if another meter is running
 	if w.powerMeter.Running() {
@@ -45,7 +45,7 @@ func (w *Worker) startMeter() error {
 	}
 }
 
-func (w *Worker) stopMeter() error {
+func (w *Worker) StopMeter() error {
 	if err := w.powerMeter.Stop(); err != nil {
 		return err
 	} else {
