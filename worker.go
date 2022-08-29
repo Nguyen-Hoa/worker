@@ -1,99 +1,62 @@
 package worker
 
 import (
-	"log"
-	"os/exec"
-	"time"
+	"errors"
 
-	"github.com/Nguyen-Hoa/wattsup"
-	"github.com/gin-gonic/gin"
+	powerMeter "github.com/Nguyen-Hoa/wattsup"
 )
 
-/* TODO
-Include k8s api to be able to start jobs? No this is handled by manager!
-Will we need k8s api at all?
-*/
+type Worker struct {
+	name        string
+	address     string
+	cpuThresh   int
+	powerThresh int
+	powerMeter  *powerMeter.Wattsup
 
-var g_meter = wattsup.Wattsup{}
-
-func dockerExecute(cid string) {
-	command := []string{"run", "-d", "--name", cid, "--rm", cid}
-	exec.Command(command[0], command[1:]...)
+	// parameters
+	_latestPower int
+	_latestCPU   int
 }
 
-func main() {
-	r := gin.Default()
+func (w *Worker) Init(
+	name string,
+	address string,
+	cpuThresh int,
+	powerThresh int,
+	powerMeterParams powerMeter.WattsupArgs,
+) error {
+	w.name = name
+	w.address = address
+	w.cpuThresh = cpuThresh
+	w.powerThresh = powerThresh
+	w.powerMeter = powerMeter.New(powerMeterParams)
+	return nil
+}
 
-	r.GET("/stats", func(c *gin.Context) {
-		/* psutil, top, or whatever stats required by models
-		perhaps the requests (manager) can specify the parameters
-		required to support a wider range of models.
-		*/
-	})
+func (w *Worker) startMeter() error {
 
-	r.POST("/meter-start", func(c *gin.Context) {
+	// Check if another meter is running
+	if w.powerMeter.Running() {
+		return errors.New("meter already running")
+	} else if err := w.powerMeter.Start(); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
 
-		// Check if another meter is running
-		if g_meter.Running() {
-			c.JSON(500, gin.H{
-				"message": "Another meter is already running!",
-			})
-			c.Abort()
-		} else {
+func (w *Worker) stopMeter() error {
+	if err := w.powerMeter.Stop(); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
 
-			// Initialize power meter
-			port := "ttyUSB0"
-			command := []string{"./wattsup", port, "-g", "watts"}
-			// filename := "out.watts"
-			t := time.Now()
-			filename := t.Format("2006-01-02_15:04:05") + ".watts"
-			if err := g_meter.Init(port, filename, command); err != nil {
-				log.Fatal("Failed to start new power meter")
-				c.JSON(500, gin.H{
-					"message": "Failed to start new power meter",
-				})
-				c.Abort()
-			}
+func (w *Worker) getPower() int {
+	return w._latestPower
+}
 
-			// Start power meter
-			g_meter.Start()
-			c.JSON(200, gin.H{
-				"message": "Power meter started",
-			})
-		}
-	})
-
-	r.POST("/meter-stop", func(c *gin.Context) {
-		if err := g_meter.Stop(); err != nil {
-			c.JSON(500, gin.H{
-				"message": "Failed to stop power meter",
-			})
-			c.Abort()
-		}
-		g_meter = wattsup.Wattsup{}
-		c.JSON(200, gin.H{
-			"message": "Power meter stopped",
-		})
-	})
-
-	r.POST("/execute", func(c *gin.Context) {
-		// get container
-		// verify image exists
-		// start container
-	})
-
-	r.POST("/migrate", func(c *gin.Context) {
-		// stop
-		// save
-		// copy
-		// done
-	})
-
-	r.POST("/kill", func(c *gin.Context) {
-		// get container
-		// verfiy contaienr is running
-		// kill
-	})
-
-	r.Run()
+func (w *Worker) getCPU() int {
+	return w._latestCPU
 }
