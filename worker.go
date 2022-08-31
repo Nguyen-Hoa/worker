@@ -42,7 +42,7 @@ func (w *Worker) Init(c WorkerConfig) error {
 	w.powerMeter = powerMeter.New(c.Wattsup)
 
 	// Initialize Docker API
-	cli, err := client.NewClientWithOpts(client.FromEnv)
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		panic(err)
 	}
