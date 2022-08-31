@@ -6,6 +6,7 @@ import (
 	"log"
 
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
+	memory "github.com/mackerelio/go-osstat/memory"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -109,4 +110,17 @@ func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
 		containerStats[container.ID] = stats
 	}
 	return containerStats, nil
+}
+
+func (w *Worker) Stats() error {
+	memory, err := memory.Get()
+	if err != nil {
+		log.Print("Error getting stats...")
+		return err
+	}
+	log.Printf("memory total: %d bytes\n", memory.Total)
+	log.Printf("memory used: %d bytes\n", memory.Used)
+	log.Printf("memory cached: %d bytes\n", memory.Cached)
+	log.Printf("memory free: %d bytes\n", memory.Free)
+	return nil
 }
