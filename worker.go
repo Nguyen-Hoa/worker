@@ -100,7 +100,7 @@ func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
 	}
 	w._runningJobs = containers
 
-	var containerStats map[string]types.ContainerStats
+	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
 	for _, container := range containers {
 		stats, err := w._docker.ContainerStats(context.Background(), container.ID, false)
 		if err != nil {
