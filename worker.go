@@ -3,7 +3,9 @@ package worker
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
+	http "net/http"
 	"time"
 
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
@@ -14,7 +16,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type Worker struct {
+type BaseWorker struct {
 	// config
 	Name         string
 	Address      string
@@ -30,10 +32,14 @@ type Worker struct {
 	LatestPredictedPower int
 	LatestCPU            int
 
-	// parameters
+	runningJobs []types.Container
+}
+
+type ServerWorker struct {
+	BaseWorker
+
 	_powerMeter *powerMeter.Wattsup
 	_docker     *client.Client
-	runningJobs []types.Container
 }
 
 type WorkerConfig struct {
@@ -47,7 +53,7 @@ type WorkerConfig struct {
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
-func (w *Worker) Init(config WorkerConfig) error {
+func (w *ServerWorker) Init(config WorkerConfig) error {
 
 	// Intialize Variables
 	w.Name = config.Name
@@ -83,8 +89,8 @@ func (w *Worker) Init(config WorkerConfig) error {
 	return nil
 }
 
-func New(config WorkerConfig) (*Worker, error) {
-	w := Worker{}
+func New(config WorkerConfig) (*BaseWorker, error) {
+	w := BaseWorker{}
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
@@ -99,27 +105,10 @@ func New(config WorkerConfig) (*Worker, error) {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	if !w.ManagerView {
-		// Initialize Power Meter
-		w._powerMeter = powerMeter.New(config.Wattsup)
-
-		// Initialize Docker API
-		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-		if err != nil {
-			return nil, err
-		}
-		w._docker = cli
-		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-		if err != nil {
-			return nil, err
-		}
-		w.runningJobs = containers
-	}
-
 	return &w, nil
 }
 
-func (w *Worker) StartMeter() error {
+func (w *ServerWorker) StartMeter() error {
 	// Check if another meter is running
 	if w._powerMeter.Running() {
 		return errors.New("meter already running")
@@ -130,7 +119,7 @@ func (w *Worker) StartMeter() error {
 	}
 }
 
-func (w *Worker) StopMeter() error {
+func (w *ServerWorker) StopMeter() error {
 	if err := w._powerMeter.Stop(); err != nil {
 		return err
 	} else {
@@ -138,15 +127,15 @@ func (w *Worker) StopMeter() error {
 	}
 }
 
-func (w *Worker) getActualPower() int {
+func (w *ServerWorker) getActualPower() int {
 	return w.LatestActualPower
 }
 
-func (w *Worker) getCPU() int {
+func (w *ServerWorker) getCPU() int {
 	return w.LatestCPU
 }
 
-func (w *Worker) RunningJobs() ([]types.Container, error) {
+func (w *ServerWorker) RunningJobs() ([]types.Container, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
@@ -154,7 +143,7 @@ func (w *Worker) RunningJobs() ([]types.Container, error) {
 	return containers, nil
 }
 
-func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
+func (w *ServerWorker) RunningJobsStats() (map[string]types.ContainerStats, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
@@ -172,7 +161,7 @@ func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
 	return containerStats, nil
 }
 
-func (w *Worker) Stats() (map[string]interface{}, error) {
+func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	//cpu usage
@@ -198,6 +187,17 @@ func (w *Worker) Stats() (map[string]interface{}, error) {
 	}
 
 	return stats, nil
+}
+
+func (w *BaseWorker) Stats() (string, error) {
+	resp, err := http.Get(w.Address + "/stats")
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	return string(body), nil
 }
 
 func cpuStats() (float64, float64, float64, error) {
