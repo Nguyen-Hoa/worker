@@ -22,6 +22,7 @@ type Worker struct {
 	PowerThresh  int
 	Cores        int
 	DynamicRange []int
+	ManagerView  bool
 
 	// status
 	Available            bool
@@ -42,44 +43,83 @@ type WorkerConfig struct {
 	PowerThresh  int                    `json:"powerThresh"`
 	Cores        int                    `json:"cores"`
 	DynamicRange []int                  `json:"dynamicRange"`
+	ManagerView  bool                   `json:"managerView"`
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
-func (w *Worker) Init(c WorkerConfig) error {
+func (w *Worker) Init(config WorkerConfig) error {
 
 	// Intialize Variables
-	w.Name = c.Name
-	w.Address = c.Address
-	w.CpuThresh = c.CpuThresh
-	w.PowerThresh = c.PowerThresh
-	w.Cores = c.Cores
-	w.DynamicRange = c.DynamicRange
+	w.Name = config.Name
+	w.Address = config.Address
+	w.CpuThresh = config.CpuThresh
+	w.PowerThresh = config.PowerThresh
+	w.Cores = config.Cores
+	w.DynamicRange = config.DynamicRange
+	w.ManagerView = config.ManagerView
 
 	w.Available = true
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	// Initialize Power Meter
-	w._powerMeter = powerMeter.New(c.Wattsup)
+	if !w.ManagerView {
+		// Initialize Power Meter
+		w._powerMeter = powerMeter.New(config.Wattsup)
 
-	// Initialize Docker API
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return err
+		// Initialize Docker API
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if err != nil {
+			return err
+		}
+		w._docker = cli
+		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+		if err != nil {
+			return err
+		}
+		w.runningJobs = containers
 	}
-	w._docker = cli
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		return err
-	}
-	w.runningJobs = containers
 
 	return nil
 }
 
-func (w *Worker) StartMeter() error {
+func New(config WorkerConfig) (*Worker, error) {
+	w := Worker{}
+	// Intialize Variables
+	w.Name = config.Name
+	w.Address = config.Address
+	w.CpuThresh = config.CpuThresh
+	w.PowerThresh = config.PowerThresh
+	w.Cores = config.Cores
+	w.DynamicRange = config.DynamicRange
+	w.ManagerView = config.ManagerView
 
+	w.Available = true
+	w.LatestActualPower = 0
+	w.LatestPredictedPower = 0
+	w.LatestCPU = 0
+
+	if !w.ManagerView {
+		// Initialize Power Meter
+		w._powerMeter = powerMeter.New(config.Wattsup)
+
+		// Initialize Docker API
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if err != nil {
+			return nil, err
+		}
+		w._docker = cli
+		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		w.runningJobs = containers
+	}
+
+	return &w, nil
+}
+
+func (w *Worker) StartMeter() error {
 	// Check if another meter is running
 	if w._powerMeter.Running() {
 		return errors.New("meter already running")
