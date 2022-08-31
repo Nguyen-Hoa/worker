@@ -83,7 +83,7 @@ func (w *Worker) getCPU() int {
 	return w._latestCPU
 }
 
-func (w *Worker) getRunningJobs() []types.Container {
+func (w *Worker) RunningJobs() []types.Container {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		panic(err)
