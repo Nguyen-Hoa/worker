@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/Nguyen-Hoa/wattsup v1.2.1
 	github.com/docker/docker v20.10.17+incompatible
+	github.com/mackerelio/go-osstat v0.2.3
 )
 
 require (
@@ -13,7 +14,6 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/mackerelio/go-osstat v0.2.3 // indirect
 	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
