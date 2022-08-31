@@ -20,7 +20,7 @@ type Worker struct {
 	// parameters
 	_latestPower int
 	_latestCPU   int
-	_docker      client.Client
+	_docker      *client.Client
 	_runningJobs []types.Container
 }
 
@@ -46,6 +46,7 @@ func (w *Worker) Init(c WorkerConfig) error {
 	if err != nil {
 		return err
 	}
+	w._docker = cli
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return err
