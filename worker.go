@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"errors"
-	"log"
 
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
 
@@ -21,6 +20,7 @@ type Worker struct {
 	// parameters
 	_latestPower int
 	_latestCPU   int
+	_docker      client.Client
 	_runningJobs []types.Container
 }
 
@@ -50,9 +50,7 @@ func (w *Worker) Init(c WorkerConfig) error {
 	if err != nil {
 		panic(err)
 	}
-	for _, container := range containers {
-		log.Printf("%s %s\n", container.ID[:10], container.Image)
-	}
+	w._runningJobs = containers
 
 	return nil
 }
@@ -83,4 +81,12 @@ func (w *Worker) getPower() int {
 
 func (w *Worker) getCPU() int {
 	return w._latestCPU
+}
+
+func (w *Worker) getRunningJobs() []types.Container {
+	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	return containers
 }
