@@ -1,9 +1,14 @@
 package worker
 
 import (
+	"context"
 	"errors"
+	"log"
 
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
 type Worker struct {
@@ -16,6 +21,7 @@ type Worker struct {
 	// parameters
 	_latestPower int
 	_latestCPU   int
+	_runningJobs []types.Container
 }
 
 type WorkerConfig struct {
@@ -27,11 +33,27 @@ type WorkerConfig struct {
 }
 
 func (w *Worker) Init(c WorkerConfig) error {
+
+	// Intialize Variables
 	w.name = c.Name
 	w.address = c.Address
 	w.cpuThresh = c.CpuThresh
 	w.powerThresh = c.PowerThresh
 	w.powerMeter = powerMeter.New(c.Wattsup)
+
+	// Initialize Docker API
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		panic(err)
+	}
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	for _, container := range containers {
+		log.Printf("%s %s\n", container.ID[:10], container.Image)
+	}
+
 	return nil
 }
 
