@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"log"
 
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
 
@@ -90,4 +91,22 @@ func (w *Worker) RunningJobs() ([]types.Container, error) {
 		return nil, err
 	}
 	return containers, nil
+}
+
+func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
+	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	w._runningJobs = containers
+
+	var containerStats map[string]types.ContainerStats
+	for _, container := range containers {
+		stats, err := w._docker.ContainerStats(context.Background(), container.ID, false)
+		if err != nil {
+			log.Println("Failed to get stats for {}", container.ID)
+		}
+		containerStats[container.ID] = stats
+	}
+	return containerStats, nil
 }
