@@ -15,35 +15,53 @@ import (
 )
 
 type Worker struct {
-	name        string
-	address     string
-	cpuThresh   int
-	powerThresh int
-	powerMeter  *powerMeter.Wattsup
+	// config
+	Name         string
+	Address      string
+	CpuThresh    int
+	PowerThresh  int
+	Cores        int
+	DynamicRange []int
+
+	// status
+	Available            bool
+	LatestActualPower    int
+	LatestPredictedPower int
+	LatestCPU            int
 
 	// parameters
-	_latestPower int
-	_latestCPU   int
-	_docker      *client.Client
-	_runningJobs []types.Container
+	_powerMeter *powerMeter.Wattsup
+	_docker     *client.Client
+	runningJobs []types.Container
 }
 
 type WorkerConfig struct {
-	Name        string                 `json:"name"`
-	Address     string                 `json:"address"`
-	CpuThresh   int                    `json:"cpuThresh"`
-	PowerThresh int                    `json:"powerThresh"`
-	Wattsup     powerMeter.WattsupArgs `json:"wattsup"`
+	Name         string                 `json:"name"`
+	Address      string                 `json:"address"`
+	CpuThresh    int                    `json:"cpuThresh"`
+	PowerThresh  int                    `json:"powerThresh"`
+	Cores        int                    `json:"cores"`
+	DynamicRange []int                  `json:"dynamicRange"`
+	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
 func (w *Worker) Init(c WorkerConfig) error {
 
 	// Intialize Variables
-	w.name = c.Name
-	w.address = c.Address
-	w.cpuThresh = c.CpuThresh
-	w.powerThresh = c.PowerThresh
-	w.powerMeter = powerMeter.New(c.Wattsup)
+	w.Name = c.Name
+	w.Address = c.Address
+	w.CpuThresh = c.CpuThresh
+	w.PowerThresh = c.PowerThresh
+	w.Cores = c.Cores
+	w.DynamicRange = c.DynamicRange
+
+	w.Available = true
+	w.LatestActualPower = 0
+	w.LatestPredictedPower = 0
+	w.LatestCPU = 0
+
+	// Initialize Power Meter
+	w._powerMeter = powerMeter.New(c.Wattsup)
 
 	// Initialize Docker API
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -55,7 +73,7 @@ func (w *Worker) Init(c WorkerConfig) error {
 	if err != nil {
 		return err
 	}
-	w._runningJobs = containers
+	w.runningJobs = containers
 
 	return nil
 }
@@ -63,9 +81,9 @@ func (w *Worker) Init(c WorkerConfig) error {
 func (w *Worker) StartMeter() error {
 
 	// Check if another meter is running
-	if w.powerMeter.Running() {
+	if w._powerMeter.Running() {
 		return errors.New("meter already running")
-	} else if err := w.powerMeter.Start(); err != nil {
+	} else if err := w._powerMeter.Start(); err != nil {
 		return err
 	} else {
 		return nil
@@ -73,19 +91,19 @@ func (w *Worker) StartMeter() error {
 }
 
 func (w *Worker) StopMeter() error {
-	if err := w.powerMeter.Stop(); err != nil {
+	if err := w._powerMeter.Stop(); err != nil {
 		return err
 	} else {
 		return nil
 	}
 }
 
-func (w *Worker) getPower() int {
-	return w._latestPower
+func (w *Worker) getActualPower() int {
+	return w.LatestActualPower
 }
 
 func (w *Worker) getCPU() int {
-	return w._latestCPU
+	return w.LatestCPU
 }
 
 func (w *Worker) RunningJobs() ([]types.Container, error) {
@@ -101,7 +119,7 @@ func (w *Worker) RunningJobsStats() (map[string]types.ContainerStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	w._runningJobs = containers
+	w.runningJobs = containers
 
 	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
 	for _, container := range containers {
