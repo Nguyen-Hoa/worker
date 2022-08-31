@@ -44,11 +44,11 @@ func (w *Worker) Init(c WorkerConfig) error {
 	// Initialize Docker API
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		panic(err)
+		return err
 	}
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
-		panic(err)
+		return err
 	}
 	w._runningJobs = containers
 
@@ -83,10 +83,10 @@ func (w *Worker) getCPU() int {
 	return w._latestCPU
 }
 
-func (w *Worker) RunningJobs() []types.Container {
+func (w *Worker) RunningJobs() ([]types.Container, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return containers
+	return containers, nil
 }
