@@ -1,7 +1,9 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -31,8 +33,8 @@ type BaseWorker struct {
 	LatestActualPower    int
 	LatestPredictedPower int
 	LatestCPU            int
-
-	runningJobs []types.Container
+	stats                map[string]interface{}
+	runningJobs          []types.Container
 }
 
 type ServerWorker struct {
@@ -186,21 +188,24 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 		stats["mem_free"] = memory.Free
 	}
 
+	w.stats = stats
 	return stats, nil
 }
 
-func (w *BaseWorker) Stats() (string, error) {
+func (w *BaseWorker) Stats() (map[string]interface{}, error) {
 	resp, err := http.Get(w.Address + "/stats")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
+	buf := new(bytes.Buffer)
+	stats := make(map[string]interface{})
+	io.Copy(buf, resp.Body)
+	json.Unmarshal(buf.Bytes(), &stats)
+
+	w.stats = stats
+	return stats, nil
 }
 
 func cpuStats() (float64, float64, float64, error) {
