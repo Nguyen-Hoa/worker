@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/Nguyen-Hoa/wattsup v1.2.1
 	github.com/docker/docker v20.10.17+incompatible
+	github.com/mackerelio/go-osstat v0.2.3
 )
 
 require (
