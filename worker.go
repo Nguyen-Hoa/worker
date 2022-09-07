@@ -66,7 +66,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.DynamicRange = config.DynamicRange
 	w.ManagerView = config.ManagerView
 
-	w.Available = true
+	w.Available = false
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
@@ -102,7 +102,7 @@ func New(config WorkerConfig) (*BaseWorker, error) {
 	w.DynamicRange = config.DynamicRange
 	w.ManagerView = config.ManagerView
 
-	w.Available = true
+	w.Available = false
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
@@ -206,6 +206,23 @@ func (w *BaseWorker) Stats() (map[string]interface{}, error) {
 
 	w.stats = stats
 	return stats, nil
+}
+
+func (w *ServerWorker) IsAvailable() bool {
+	return w.Available
+}
+
+func (w *BaseWorker) IsAvailable() bool {
+	resp, err := http.Get(w.Address + "/stats")
+	if err != nil {
+		return false
+	}
+
+	if resp.StatusCode == 200 {
+		return true
+	} else {
+		return false
+	}
 }
 
 func cpuStats() (float64, float64, float64, error) {
