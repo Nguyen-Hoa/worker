@@ -213,7 +213,7 @@ func (w *ServerWorker) IsAvailable() bool {
 }
 
 func (w *BaseWorker) IsAvailable() bool {
-	resp, err := http.Get(w.Address + "/stats")
+	resp, err := http.Get(w.Address + "/available")
 	if err != nil {
 		return false
 	}
