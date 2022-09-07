@@ -213,16 +213,20 @@ func (w *ServerWorker) IsAvailable() bool {
 }
 
 func (w *BaseWorker) IsAvailable() bool {
+	log.Println(w.Address + "/available")
 	resp, err := http.Get(w.Address + "/available")
 	if err != nil {
+		log.Fatalln(err)
 		return false
 	}
 
+	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
 		return true
 	} else {
 		return false
 	}
+
 }
 
 func cpuStats() (float64, float64, float64, error) {
