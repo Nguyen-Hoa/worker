@@ -140,7 +140,11 @@ func (w *ServerWorker) StopMeter() error {
 func (w *ServerWorker) VerifyImage(ID string) bool {
 	if _, _, err := w._docker.ImageInspectWithRaw(context.Background(), ID); err != nil {
 		log.Println(err)
-		return false
+		log.Println("Attempting to pull image...")
+		if _, err := w._docker.ImagePull(context.Background(), "alpine", types.ImagePullOptions{}); err != nil {
+			log.Println(err)
+			log.Println("Failed to pull image...")
+		}
 	}
 	return true
 }
