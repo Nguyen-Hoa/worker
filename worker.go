@@ -15,6 +15,7 @@ import (
 	memory "github.com/mackerelio/go-osstat/memory"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
@@ -34,7 +35,7 @@ type BaseWorker struct {
 	LatestPredictedPower int
 	LatestCPU            int
 	stats                map[string]interface{}
-	runningJobs          []types.Container
+	runningJobs          map[string]DockerJob
 }
 
 type ServerWorker struct {
@@ -55,6 +56,11 @@ type WorkerConfig struct {
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
+type Job struct {
+	Image string   `json:"image"`
+	Cmd   []string `json:"cmd"`
+}
+
 func (w *ServerWorker) Init(config WorkerConfig) error {
 
 	// Intialize Variables
@@ -71,6 +77,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
+	w.runningJobs = make(map[string]DockerJob)
+
 	if !w.ManagerView {
 		// Initialize Power Meter
 		w._powerMeter = powerMeter.New(config.Wattsup)
@@ -85,7 +93,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 		if err != nil {
 			return err
 		}
-		w.runningJobs = containers
+		w.updateRunningJobs(containers)
 	}
 
 	return nil
@@ -129,12 +137,108 @@ func (w *ServerWorker) StopMeter() error {
 	}
 }
 
-func (w *ServerWorker) getActualPower() int {
-	return w.LatestActualPower
+func (w *ServerWorker) VerifyImage(ID string) bool {
+	if _, _, err := w._docker.ImageInspectWithRaw(context.Background(), ID); err != nil {
+		log.Println(err)
+		log.Println("Attempting to pull image...")
+		if _, err := w._docker.ImagePull(context.Background(), ID, types.ImagePullOptions{}); err != nil {
+			log.Println(err)
+			log.Println("Failed to pull image...")
+		}
+	}
+	return true
 }
 
-func (w *ServerWorker) getCPU() int {
-	return w.LatestCPU
+func (w *ServerWorker) VerifyContainer(ID string) bool {
+	if _, exists := w.runningJobs[ID]; exists {
+		return true
+	}
+	return false
+}
+
+func (w *ServerWorker) StartJob(image string, cmd []string) error {
+	// verify image exists
+	if !w.VerifyImage(image) {
+		return errors.New("Image does not exist")
+	}
+
+	// create image
+	resp, err := w._docker.ContainerCreate(context.Background(), &container.Config{
+		Image: image,
+		Cmd:   cmd,
+	}, nil, nil, nil, "")
+	if err != nil {
+		panic(err)
+	}
+
+	// start image
+	if err := w._docker.ContainerStart(context.Background(), resp.ID, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+
+	// update list of running jobs
+	newCtr := DockerJob{
+		BaseJob: BaseJob{
+			StartTime:    time.Now(),
+			TotalRunTime: time.Duration(0),
+		},
+		Container: types.Container{ID: resp.ID},
+	}
+	w.runningJobs[resp.ID] = newCtr
+
+	return nil
+}
+
+func (w *BaseWorker) StartJob(image string, cmd []string) error {
+	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(job)
+	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *ServerWorker) StopJob(ID string) error {
+	if w.VerifyContainer(ID) {
+		if err := w._docker.ContainerStop(context.Background(), ID, nil); err != nil {
+			return err
+		}
+	} else {
+		return errors.New("Failed to stop: Job ID not found")
+	}
+
+	ctr := w.runningJobs[ID]
+	ctr.UpdateTotalRunTime(time.Now())
+
+	return nil
+}
+
+func (w *ServerWorker) updateRunningJobs(containers []types.Container) error {
+	for _, container := range containers {
+		if w.VerifyContainer(container.ID) {
+			newContainer := DockerJob{
+				BaseJob:   w.runningJobs[container.ID].BaseJob,
+				Container: container,
+			}
+			newContainer.UpdateTotalRunTime(time.Now())
+			w.runningJobs[container.ID] = newContainer
+		} else {
+			log.Println("Found an orphan job")
+			newCtr := DockerJob{
+				BaseJob: BaseJob{
+					StartTime:    time.Now(),
+					TotalRunTime: time.Duration(0),
+				},
+				Container: types.Container{ID: container.ID},
+			}
+			w.runningJobs[container.ID] = newCtr
+		}
+	}
+	return nil
 }
 
 func (w *ServerWorker) RunningJobs() ([]types.Container, error) {
@@ -142,6 +246,7 @@ func (w *ServerWorker) RunningJobs() ([]types.Container, error) {
 	if err != nil {
 		return nil, err
 	}
+	w.updateRunningJobs(containers)
 	return containers, nil
 }
 
@@ -150,7 +255,7 @@ func (w *ServerWorker) RunningJobsStats() (map[string]types.ContainerStats, erro
 	if err != nil {
 		return nil, err
 	}
-	w.runningJobs = containers
+	w.updateRunningJobs(containers)
 
 	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
 	for _, container := range containers {
@@ -225,7 +330,6 @@ func (w *BaseWorker) IsAvailable() bool {
 	} else {
 		return false
 	}
-
 }
 
 func cpuStats() (float64, float64, float64, error) {
