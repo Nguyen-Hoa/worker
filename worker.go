@@ -56,6 +56,11 @@ type WorkerConfig struct {
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
+type Job struct {
+	Image string   `json:"image"`
+	Cmd   []string `json:"cmd"`
+}
+
 func (w *ServerWorker) Init(config WorkerConfig) error {
 
 	// Intialize Variables
@@ -177,6 +182,19 @@ func (w *ServerWorker) StartJob(image string, cmd []string) error {
 	}
 	w.runningJobs[resp.ID] = newCtr
 
+	return nil
+}
+
+func (w *BaseWorker) StartJob(image string, cmd []string) error {
+	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(job)
+	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
+		return err
+	}
 	return nil
 }
 
