@@ -130,12 +130,11 @@ func (w *ServerWorker) StopMeter() error {
 	}
 }
 
-func (w *ServerWorker) getActualPower() int {
-	return w.LatestActualPower
-}
-
-func (w *ServerWorker) getCPU() int {
-	return w.LatestCPU
+func (w *ServerWorker) VerifyImage(ID string) error {
+	if _, _, err := w._docker.ImageInspectWithRaw(context.Background(), ID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (w *ServerWorker) startJob(job DockerJob) error {
