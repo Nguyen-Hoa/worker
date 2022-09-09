@@ -72,6 +72,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
+	w.runningJobs = make(map[string]DockerJob)
+
 	if !w.ManagerView {
 		// Initialize Power Meter
 		w._powerMeter = powerMeter.New(config.Wattsup)
@@ -87,7 +89,6 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 			return err
 		}
 		w.updateRunningJobs(containers)
-
 	}
 
 	return nil
@@ -148,7 +149,7 @@ func (w *ServerWorker) VerifyContainer(ID string) bool {
 
 func (w *ServerWorker) StartJob(image string, cmd []string) error {
 	// verify image exists
-	if w.VerifyImage(image) {
+	if !w.VerifyImage(image) {
 		return errors.New("Image does not exist")
 	}
 
@@ -307,7 +308,6 @@ func (w *BaseWorker) IsAvailable() bool {
 	} else {
 		return false
 	}
-
 }
 
 func cpuStats() (float64, float64, float64, error) {
