@@ -146,63 +146,72 @@ func (w *ServerWorker) VerifyContainer(ID string) bool {
 	return false
 }
 
-func (w *ServerWorker) StartJob(job container.Config) error {
-	ctx := context.Background()
+func (w *ServerWorker) StartJob(image string, cmd []string) error {
+	// verify image exists
+	if w.VerifyImage(image) {
+		return errors.New("Image does not exist")
+	}
 
-	// out, err := w._docker.ImagePull(ctx, job.Image, types.ImagePullOptions{})
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer out.Close()
-	// io.Copy(os.Stdout, out)
-
-	resp, err := w._docker.ContainerCreate(ctx, &container.Config{
-		Image: job.Image,
-		Cmd:   job.Cmd,
+	// create image
+	resp, err := w._docker.ContainerCreate(context.Background(), &container.Config{
+		Image: image,
+		Cmd:   cmd,
 	}, nil, nil, nil, "")
 	if err != nil {
 		panic(err)
 	}
 
-	if err := w._docker.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+	// start image
+	if err := w._docker.ContainerStart(context.Background(), resp.ID, types.ContainerStartOptions{}); err != nil {
 		panic(err)
 	}
 
-	if !w.VerifyContainer(resp.ID) {
-		newCtr := DockerJob{}
-		newCtr.ID = resp.ID
-		newCtr.StartTime = time.Now()
-		w.runningJobs[resp.ID] = newCtr
-	} else {
-		ctr := w.runningJobs[resp.ID]
-		ctr.StartTime = time.Now()
+	// update list of running jobs
+	newCtr := DockerJob{
+		BaseJob: BaseJob{
+			StartTime:    time.Now(),
+			TotalRunTime: time.Duration(0),
+		},
+		Container: types.Container{ID: resp.ID},
 	}
-
-	w.RunningJobs()
+	w.runningJobs[resp.ID] = newCtr
 
 	return nil
 }
 
-func (w *ServerWorker) StopJob(job DockerJob) error {
-	if err := w._docker.ContainerStop(context.Background(), job.ID, nil); err != nil {
-		panic(err)
+func (w *ServerWorker) StopJob(ID string) error {
+	if w.VerifyContainer(ID) {
+		if err := w._docker.ContainerStop(context.Background(), ID, nil); err != nil {
+			return err
+		}
+	} else {
+		return errors.New("Failed to stop: Job ID not found")
 	}
 
-	job.UpdateTotalRunTime(time.Now())
+	ctr := w.runningJobs[ID]
+	ctr.UpdateTotalRunTime(time.Now())
+
 	return nil
 }
 
 func (w *ServerWorker) updateRunningJobs(containers []types.Container) error {
 	for _, container := range containers {
 		if w.VerifyContainer(container.ID) {
-			baseJob := w.runningJobs[container.ID].BaseJob
-			newContainer := DockerJob{BaseJob: baseJob, Container: container}
+			newContainer := DockerJob{
+				BaseJob:   w.runningJobs[container.ID].BaseJob,
+				Container: container,
+			}
 			newContainer.UpdateTotalRunTime(time.Now())
 			w.runningJobs[container.ID] = newContainer
 		} else {
-			newCtr := DockerJob{}
-			newCtr.ID = container.ID
-			newCtr.StartTime = time.Now()
+			log.Println("Found an orphan job")
+			newCtr := DockerJob{
+				BaseJob: BaseJob{
+					StartTime:    time.Now(),
+					TotalRunTime: time.Duration(0),
+				},
+				Container: types.Container{ID: container.ID},
+			}
 			w.runningJobs[container.ID] = newCtr
 		}
 	}
