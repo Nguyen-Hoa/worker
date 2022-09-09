@@ -15,6 +15,7 @@ import (
 	memory "github.com/mackerelio/go-osstat/memory"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
@@ -137,11 +138,47 @@ func (w *ServerWorker) getCPU() int {
 	return w.LatestCPU
 }
 
+func (w *ServerWorker) startJob(job DockerJob) error {
+	ctx := context.Background()
+
+	// out, err := w._docker.ImagePull(ctx, job.Image, types.ImagePullOptions{})
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer out.Close()
+	// io.Copy(os.Stdout, out)
+
+	resp, err := w._docker.ContainerCreate(ctx, &container.Config{
+		Image: job.Image,
+	}, nil, nil, nil, "")
+	if err != nil {
+		panic(err)
+	}
+
+	if err := w._docker.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		panic(err)
+	}
+	job.StartTime = time.Now()
+
+	return nil
+}
+
+func (w *ServerWorker) stopJob(job DockerJob) error {
+	if err := w._docker.ContainerStop(context.Background(), job.ID, nil); err != nil {
+		panic(err)
+	}
+
+	job.UpdateTotalRunTime(time.Now())
+	job.StopTime = time.Now()
+	return nil
+}
+
 func (w *ServerWorker) RunningJobs() ([]types.Container, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}
+	w.runningJobs = containers
 	return containers, nil
 }
 
