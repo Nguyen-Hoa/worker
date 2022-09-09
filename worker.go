@@ -35,7 +35,7 @@ type BaseWorker struct {
 	LatestPredictedPower int
 	LatestCPU            int
 	stats                map[string]interface{}
-	runningJobs          []types.Container
+	runningJobs          map[string]DockerJob
 }
 
 type ServerWorker struct {
@@ -86,7 +86,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 		if err != nil {
 			return err
 		}
-		w.runningJobs = containers
+		w.updateRunningJobs(containers)
+
 	}
 
 	return nil
@@ -130,14 +131,22 @@ func (w *ServerWorker) StopMeter() error {
 	}
 }
 
-func (w *ServerWorker) VerifyImage(ID string) error {
+func (w *ServerWorker) VerifyImage(ID string) bool {
 	if _, _, err := w._docker.ImageInspectWithRaw(context.Background(), ID); err != nil {
-		return err
+		log.Println(err)
+		return false
 	}
-	return nil
+	return true
 }
 
-func (w *ServerWorker) startJob(job DockerJob) error {
+func (w *ServerWorker) VerifyContainer(ID string) bool {
+	if _, exists := w.runningJobs[ID]; exists {
+		return true
+	}
+	return false
+}
+
+func (w *ServerWorker) StartJob(job container.Config) error {
 	ctx := context.Background()
 
 	// out, err := w._docker.ImagePull(ctx, job.Image, types.ImagePullOptions{})
@@ -149,6 +158,7 @@ func (w *ServerWorker) startJob(job DockerJob) error {
 
 	resp, err := w._docker.ContainerCreate(ctx, &container.Config{
 		Image: job.Image,
+		Cmd:   job.Cmd,
 	}, nil, nil, nil, "")
 	if err != nil {
 		panic(err)
@@ -157,18 +167,45 @@ func (w *ServerWorker) startJob(job DockerJob) error {
 	if err := w._docker.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
 		panic(err)
 	}
-	job.StartTime = time.Now()
+
+	if !w.VerifyContainer(resp.ID) {
+		newCtr := DockerJob{}
+		newCtr.ID = resp.ID
+		newCtr.StartTime = time.Now()
+		w.runningJobs[resp.ID] = newCtr
+	} else {
+		ctr := w.runningJobs[resp.ID]
+		ctr.StartTime = time.Now()
+	}
+
+	w.RunningJobs()
 
 	return nil
 }
 
-func (w *ServerWorker) stopJob(job DockerJob) error {
+func (w *ServerWorker) StopJob(job DockerJob) error {
 	if err := w._docker.ContainerStop(context.Background(), job.ID, nil); err != nil {
 		panic(err)
 	}
 
 	job.UpdateTotalRunTime(time.Now())
-	job.StopTime = time.Now()
+	return nil
+}
+
+func (w *ServerWorker) updateRunningJobs(containers []types.Container) error {
+	for _, container := range containers {
+		if w.VerifyContainer(container.ID) {
+			baseJob := w.runningJobs[container.ID].BaseJob
+			newContainer := DockerJob{BaseJob: baseJob, Container: container}
+			newContainer.UpdateTotalRunTime(time.Now())
+			w.runningJobs[container.ID] = newContainer
+		} else {
+			newCtr := DockerJob{}
+			newCtr.ID = container.ID
+			newCtr.StartTime = time.Now()
+			w.runningJobs[container.ID] = newCtr
+		}
+	}
 	return nil
 }
 
@@ -177,7 +214,7 @@ func (w *ServerWorker) RunningJobs() ([]types.Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	w.runningJobs = containers
+	w.updateRunningJobs(containers)
 	return containers, nil
 }
 
@@ -186,7 +223,7 @@ func (w *ServerWorker) RunningJobsStats() (map[string]types.ContainerStats, erro
 	if err != nil {
 		return nil, err
 	}
-	w.runningJobs = containers
+	w.updateRunningJobs(containers)
 
 	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
 	for _, container := range containers {

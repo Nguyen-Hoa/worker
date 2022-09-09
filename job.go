@@ -8,7 +8,6 @@ import (
 
 type BaseJob struct {
 	StartTime    time.Time
-	StopTime     time.Time
 	TotalRunTime time.Duration
 }
 
