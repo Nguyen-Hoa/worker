@@ -150,8 +150,6 @@ func (w *ServerWorker) VerifyImage(ID string) bool {
 }
 
 func (w *ServerWorker) VerifyContainer(ID string) bool {
-	log.Print("Verifying IDs...")
-	log.Print(w.runningJobs)
 	if _, exists := w.runningJobs[ID]; exists {
 		return true
 	}
