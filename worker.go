@@ -214,6 +214,7 @@ func (w *ServerWorker) StopJob(ID string) error {
 	ctr := w.runningJobs[ID]
 	ctr.UpdateTotalRunTime(time.Now())
 
+	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
 	return nil
 }
 
