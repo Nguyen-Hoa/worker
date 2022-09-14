@@ -10,9 +10,8 @@ import (
 	http "net/http"
 	"time"
 
+	profile "github.com/Nguyen-Hoa/profile"
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
-	cpu "github.com/mackerelio/go-osstat/cpu"
-	memory "github.com/mackerelio/go-osstat/memory"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -270,31 +269,10 @@ func (w *ServerWorker) RunningJobsStats() (map[string]types.ContainerStats, erro
 }
 
 func (w *ServerWorker) Stats() (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
-
-	//cpu usage
-	user, system, idle, err := cpuStats()
+	stats, err := profile.Get11Stats()
 	if err != nil {
-		log.Print("Error getting cpu usage...")
-	} else {
-		stats["cpu_user"] = user
-		stats["cpu_system"] = system
-		stats["cpu_idle"] = idle
-	}
-
-	// memory usage
-	memory, err := memory.Get()
-	if err != nil {
-		log.Print("Error getting memory usage...")
 		return nil, err
-	} else {
-		stats["mem_total"] = memory.Total
-		stats["mem_used"] = memory.Used
-		stats["mem_cached"] = memory.Cached
-		stats["mem_free"] = memory.Free
 	}
-
-	w.stats = stats
 	return stats, nil
 }
 
@@ -331,23 +309,4 @@ func (w *BaseWorker) IsAvailable() bool {
 	} else {
 		return false
 	}
-}
-
-func cpuStats() (float64, float64, float64, error) {
-	before, err := cpu.Get()
-	if err != nil {
-		return 0.0, 0.0, 0.0, err
-	}
-	time.Sleep(time.Duration(1) * time.Second)
-	after, err := cpu.Get()
-	if err != nil {
-		return 0.0, 0.0, 0.0, err
-	}
-	total := float64(after.Total - before.Total)
-
-	user := float64(after.User-before.User) / total * 100
-	system := float64(after.System-before.System) / total * 100
-	idle := float64(after.Idle-before.Idle) / total * 100
-
-	return user, system, idle, nil
 }
