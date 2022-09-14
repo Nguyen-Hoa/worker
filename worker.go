@@ -292,6 +292,10 @@ func (w *BaseWorker) Stats() (map[string]interface{}, error) {
 	return stats, nil
 }
 
+func (w *BaseWorker) GetStats() map[string]interface{} {
+	return w.stats
+}
+
 func (w *ServerWorker) IsAvailable() bool {
 	return w.Available
 }
