@@ -6,6 +6,8 @@ github.com/Nguyen-Hoa/profile v0.0.0-20220914154622-1c9787b9a255 h1:OefMjSHHpFMQ
 github.com/Nguyen-Hoa/profile v0.0.0-20220914154622-1c9787b9a255/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/profile v1.2.1 h1:j3ryjcXfy1FlLzur8QJdotP7d3WDOLaXSBMEvlGwMAc=
 github.com/Nguyen-Hoa/profile v1.2.1/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
+github.com/Nguyen-Hoa/profile v1.2.2 h1:SAanKi5yrCnoWEdEomnqbfoJVcw/fs/Yq9h0QZOJNKQ=
+github.com/Nguyen-Hoa/profile v1.2.2/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/wattsup v1.2.1 h1:Wk8ejPFlmJ0g2lgX1oh5Wj0d2l5q2Zg6aND6hPyPo28=
 github.com/Nguyen-Hoa/wattsup v1.2.1/go.mod h1:J7uo51q7RcgqJe/Xk8YHiytVkY0jlFgoxtvYAlzxiEo=
 github.com/Nguyen-Hoa/wattsup v1.2.2-0.20220920020948-083b1d170975 h1:JCY72nAoIDpx74RFeh3/wP2nNqVTHc546jyNkKlvNcI=
