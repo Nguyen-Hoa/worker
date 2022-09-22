@@ -6,7 +6,6 @@ require (
 	github.com/Nguyen-Hoa/profile v0.0.0-20220914154622-1c9787b9a255
 	github.com/Nguyen-Hoa/wattsup v1.2.1
 	github.com/docker/docker v20.10.17+incompatible
-	github.com/mackerelio/go-osstat v0.2.3
 )
 
 require (
