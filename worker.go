@@ -158,7 +158,7 @@ func (w *ServerWorker) VerifyContainer(ID string) bool {
 func (w *ServerWorker) StartJob(image string, cmd []string) error {
 	// verify image exists
 	if !w.VerifyImage(image) {
-		return errors.New("Image does not exist")
+		return errors.New("image does not exist")
 	}
 
 	// create image
@@ -207,7 +207,7 @@ func (w *ServerWorker) StopJob(ID string) error {
 			return err
 		}
 	} else {
-		return errors.New("Failed to stop: Job ID not found")
+		return errors.New("failed to stop: Job ID not found")
 	}
 
 	ctr := w.runningJobs[ID]
