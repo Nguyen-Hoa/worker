@@ -129,7 +129,8 @@ func (w *ServerWorker) StartMeter() error {
 }
 
 func (w *BaseWorker) StartMeter() error {
-	if res, err := http.Post(w.Address+"/meter-start", "", nil); res.StatusCode != 200 {
+	body := new(bytes.Buffer)
+	if res, err := http.Post(w.Address+"/meter-start", "application/json", body); res.StatusCode != 200 {
 		return err
 	} else {
 		return nil
@@ -145,7 +146,8 @@ func (w *ServerWorker) StopMeter() error {
 }
 
 func (w *BaseWorker) StopMeter() error {
-	if res, err := http.Post(w.Address+"/meter-stop", "", nil); res.StatusCode != 200 {
+	body := new(bytes.Buffer)
+	if res, err := http.Post(w.Address+"/meter-stop", "application/json", body); res.StatusCode != 200 {
 		return err
 	} else {
 		return nil
