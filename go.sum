@@ -8,8 +8,8 @@ github.com/Nguyen-Hoa/profile v1.2.1 h1:j3ryjcXfy1FlLzur8QJdotP7d3WDOLaXSBMEvlGw
 github.com/Nguyen-Hoa/profile v1.2.1/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/profile v1.2.2 h1:SAanKi5yrCnoWEdEomnqbfoJVcw/fs/Yq9h0QZOJNKQ=
 github.com/Nguyen-Hoa/profile v1.2.2/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
-github.com/Nguyen-Hoa/profile v1.2.3 h1:Bhjd/09lUyH9SYoMe7kz6j27X+gr1pO9AY8Og0l8AAs=
-github.com/Nguyen-Hoa/profile v1.2.3/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
+github.com/Nguyen-Hoa/profile v1.2.4 h1:fFhBW0cPX0MXYgR1O2ncTTw9haUodj7orKERZvY/bB8=
+github.com/Nguyen-Hoa/profile v1.2.4/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/wattsup v1.2.1 h1:Wk8ejPFlmJ0g2lgX1oh5Wj0d2l5q2Zg6aND6hPyPo28=
 github.com/Nguyen-Hoa/wattsup v1.2.1/go.mod h1:J7uo51q7RcgqJe/Xk8YHiytVkY0jlFgoxtvYAlzxiEo=
 github.com/Nguyen-Hoa/wattsup v1.2.2-0.20220920020948-083b1d170975 h1:JCY72nAoIDpx74RFeh3/wP2nNqVTHc546jyNkKlvNcI=
