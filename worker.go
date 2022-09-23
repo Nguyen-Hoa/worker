@@ -27,6 +27,7 @@ type BaseWorker struct {
 	Cores        int
 	DynamicRange []int
 	ManagerView  bool
+	config       WorkerConfig
 
 	// status
 	Available            bool
@@ -61,6 +62,7 @@ type Job struct {
 }
 
 func (w *ServerWorker) Init(config WorkerConfig) error {
+	w.config = config
 
 	// Intialize Variables
 	w.Name = config.Name
@@ -129,8 +131,7 @@ func (w *ServerWorker) StartMeter() error {
 }
 
 func (w *BaseWorker) StartMeter() error {
-	body := new(bytes.Buffer)
-	if res, err := http.Post(w.Address+"/meter-start", "application/json", body); res.StatusCode != 200 {
+	if res, err := http.Post(w.Address+"/meter-start", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
 		return err
 	} else {
 		return nil
@@ -141,13 +142,13 @@ func (w *ServerWorker) StopMeter() error {
 	if err := w._powerMeter.Stop(); err != nil {
 		return err
 	} else {
+		w._powerMeter = powerMeter.New(w.config.Wattsup)
 		return nil
 	}
 }
 
 func (w *BaseWorker) StopMeter() error {
-	body := new(bytes.Buffer)
-	if res, err := http.Post(w.Address+"/meter-stop", "application/json", body); res.StatusCode != 200 {
+	if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
 		return err
 	} else {
 		return nil
