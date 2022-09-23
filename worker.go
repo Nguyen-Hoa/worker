@@ -128,8 +128,24 @@ func (w *ServerWorker) StartMeter() error {
 	}
 }
 
+func (w *BaseWorker) StartMeter() error {
+	if res, err := http.Post(w.Address+"/meter-start", "", nil); res.StatusCode != 200 {
+		return err
+	} else {
+		return nil
+	}
+}
+
 func (w *ServerWorker) StopMeter() error {
 	if err := w._powerMeter.Stop(); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (w *BaseWorker) StopMeter() error {
+	if res, err := http.Post(w.Address+"/meter-stop", "", nil); res.StatusCode != 200 {
 		return err
 	} else {
 		return nil
