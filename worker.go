@@ -18,33 +18,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type BaseWorker struct {
-	// config
-	Name         string
-	Address      string
-	CpuThresh    int
-	PowerThresh  int
-	Cores        int
-	DynamicRange []int
-	ManagerView  bool
-	config       WorkerConfig
-
-	// status
-	Available            bool
-	LatestActualPower    int
-	LatestPredictedPower int
-	LatestCPU            int
-	stats                map[string]interface{}
-	runningJobs          map[string]DockerJob
-}
-
-type ServerWorker struct {
-	BaseWorker
-
-	_powerMeter *powerMeter.Wattsup
-	_docker     *client.Client
-}
-
 type WorkerConfig struct {
 	Name         string                 `json:"name"`
 	Address      string                 `json:"address"`
@@ -53,12 +26,21 @@ type WorkerConfig struct {
 	Cores        int                    `json:"cores"`
 	DynamicRange []int                  `json:"dynamicRange"`
 	ManagerView  bool                   `json:"managerView"`
+	RPCServer    bool                   `json:"rpcServer"`
+	RPCPort      string                 `json:"rpcPort"`
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
 type Job struct {
 	Image string   `json:"image"`
 	Cmd   []string `json:"cmd"`
+}
+
+type ServerWorker struct {
+	BaseWorker
+
+	_powerMeter *powerMeter.Wattsup
+	_docker     *client.Client
 }
 
 func (w *ServerWorker) Init(config WorkerConfig) error {
@@ -72,6 +54,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange
 	w.ManagerView = config.ManagerView
+	w.RPCServer = config.RPCServer
+	w.RPCPort = config.RPCPort
 
 	w.Available = false
 	w.LatestActualPower = 0
@@ -100,25 +84,6 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	return nil
 }
 
-func New(config WorkerConfig) (*BaseWorker, error) {
-	w := BaseWorker{}
-	// Intialize Variables
-	w.Name = config.Name
-	w.Address = config.Address
-	w.CpuThresh = config.CpuThresh
-	w.PowerThresh = config.PowerThresh
-	w.Cores = config.Cores
-	w.DynamicRange = config.DynamicRange
-	w.ManagerView = config.ManagerView
-
-	w.Available = false
-	w.LatestActualPower = 0
-	w.LatestPredictedPower = 0
-	w.LatestCPU = 0
-
-	return &w, nil
-}
-
 func (w *ServerWorker) StartMeter() error {
 	// Check if another meter is running
 	if w._powerMeter.Running() {
@@ -130,8 +95,11 @@ func (w *ServerWorker) StartMeter() error {
 	}
 }
 
-func (w *BaseWorker) StartMeter() error {
-	if res, err := http.Post(w.Address+"/meter-start", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
+func (w *ServerWorker) RPCStartMeter(payload string, reply *string) error {
+	// Check if another meter is running
+	if w._powerMeter.Running() {
+		return errors.New("meter already running")
+	} else if err := w._powerMeter.Start(); err != nil {
 		return err
 	} else {
 		return nil
@@ -143,14 +111,6 @@ func (w *ServerWorker) StopMeter() error {
 		return err
 	} else {
 		w._powerMeter = powerMeter.New(w.config.Wattsup)
-		return nil
-	}
-}
-
-func (w *BaseWorker) StopMeter() error {
-	if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
-		return err
-	} else {
 		return nil
 	}
 }
@@ -204,19 +164,6 @@ func (w *ServerWorker) StartJob(image string, cmd []string) error {
 	}
 	w.runningJobs[resp.ID] = newCtr
 
-	return nil
-}
-
-func (w *BaseWorker) StartJob(image string, cmd []string) error {
-	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
-	if err != nil {
-		return err
-	}
-
-	body := bytes.NewBuffer(job)
-	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -293,6 +240,87 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 		return nil, err
 	}
 	return stats, nil
+}
+
+func (w *ServerWorker) RPCStats(payload string, reply *map[string]interface{}) error {
+	stats, err := profile.Get11Stats()
+	if err != nil {
+		return err
+	}
+	*reply = stats
+	return nil
+}
+
+type BaseWorker struct {
+	// config
+	Name         string
+	Address      string
+	CpuThresh    int
+	PowerThresh  int
+	Cores        int
+	DynamicRange []int
+	ManagerView  bool
+	RPCServer    bool
+	RPCPort      string
+	config       WorkerConfig
+
+	// status
+	Available            bool
+	LatestActualPower    int
+	LatestPredictedPower int
+	LatestCPU            int
+	stats                map[string]interface{}
+	runningJobs          map[string]DockerJob
+}
+
+func New(config WorkerConfig) (*BaseWorker, error) {
+	w := BaseWorker{}
+	// Intialize Variables
+	w.Name = config.Name
+	w.Address = config.Address
+	w.CpuThresh = config.CpuThresh
+	w.PowerThresh = config.PowerThresh
+	w.Cores = config.Cores
+	w.DynamicRange = config.DynamicRange
+	w.ManagerView = config.ManagerView
+	w.RPCServer = config.RPCServer
+	w.RPCPort = config.RPCPort
+
+	w.Available = false
+	w.LatestActualPower = 0
+	w.LatestPredictedPower = 0
+	w.LatestCPU = 0
+
+	return &w, nil
+}
+
+func (w *BaseWorker) StartMeter() error {
+	if res, err := http.Post(w.Address+"/meter-start", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (w *BaseWorker) StopMeter() error {
+	if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (w *BaseWorker) StartJob(image string, cmd []string) error {
+	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(job)
+	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (w *BaseWorker) Stats() (map[string]interface{}, error) {
