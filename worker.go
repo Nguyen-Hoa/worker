@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	http "net/http"
+	"net/rpc"
 	"time"
 
 	profile "github.com/Nguyen-Hoa/profile"
@@ -36,6 +37,155 @@ type Job struct {
 	Cmd   []string `json:"cmd"`
 }
 
+/* --------------------
+Base Worker
+----------------------*/
+type BaseWorker struct {
+	// config
+	Name         string
+	Address      string
+	CpuThresh    int
+	PowerThresh  int
+	Cores        int
+	DynamicRange []int
+	ManagerView  bool
+	RPCServer    bool
+	RPCPort      string
+	rpcClient    *rpc.Client
+	config       WorkerConfig
+
+	// status
+	Available            bool
+	LatestActualPower    int
+	LatestPredictedPower int
+	LatestCPU            int
+	stats                map[string]interface{}
+	runningJobs          map[string]DockerJob
+}
+
+func New(config WorkerConfig) (*BaseWorker, error) {
+	w := BaseWorker{}
+	// Intialize Variables
+	w.Name = config.Name
+	w.Address = config.Address
+	w.CpuThresh = config.CpuThresh
+	w.PowerThresh = config.PowerThresh
+	w.Cores = config.Cores
+	w.DynamicRange = config.DynamicRange
+	w.ManagerView = config.ManagerView
+	w.RPCServer = config.RPCServer
+	w.RPCPort = config.RPCPort
+	if config.RPCServer {
+		client, err := rpc.DialHTTP("tcp", config.Address+config.RPCPort)
+		if err != nil {
+			log.Print(err)
+			return nil, err
+		}
+		w.rpcClient = client
+	}
+
+	w.Available = false
+	w.LatestActualPower = 0
+	w.LatestPredictedPower = 0
+	w.LatestCPU = 0
+
+	return &w, nil
+}
+
+func (w *BaseWorker) StartMeter() error {
+	if w.RPCServer {
+		var reply string
+		if err := w.rpcClient.Call("RPCServerWorker.StartMeter", "", &reply); err != nil {
+			return err
+		}
+	} else {
+		if res, err := http.Post(w.Address+"/meter-start", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *BaseWorker) StopMeter() error {
+	if w.RPCServer {
+		var reply string
+		if err := w.rpcClient.Call("RPCServerWorker.StopMeter", "", &reply); err != nil {
+			return err
+		}
+	} else {
+		if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *BaseWorker) StartJob(image string, cmd []string) error {
+	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
+	if err != nil {
+		return err
+	}
+
+	body := bytes.NewBuffer(job)
+	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *BaseWorker) Stats() (map[string]interface{}, error) {
+	if w.RPCServer {
+		var reply map[string]interface{}
+		if err := w.rpcClient.Call("RPCServerWorker.Stats", "", &reply); err != nil {
+			return nil, err
+		}
+		w.stats = reply
+		return reply, nil
+	} else {
+		resp, err := http.Get(w.Address + "/stats")
+		if err != nil {
+			return nil, err
+		}
+
+		defer resp.Body.Close()
+		buf := new(bytes.Buffer)
+		stats := make(map[string]interface{})
+		io.Copy(buf, resp.Body)
+		json.Unmarshal(buf.Bytes(), &stats)
+
+		w.stats = stats
+		return stats, nil
+	}
+}
+
+func (w *BaseWorker) GetStats() map[string]interface{} {
+	return w.stats
+}
+
+func (w *BaseWorker) IsAvailable() bool {
+	if w.RPCServer {
+		var available bool
+		if err := w.rpcClient.Call("RPCServerWorker.IsAvailable", "", &available); err != nil {
+			log.Fatalln(err)
+			return false
+		}
+	} else {
+		resp, err := http.Get(w.Address + "/available")
+		if err != nil {
+			log.Fatalln(err)
+			return false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return false
+		}
+	}
+	return true
+}
+
+/* --------------------
+Server Worker
+----------------------*/
 type ServerWorker struct {
 	BaseWorker
 
@@ -85,17 +235,6 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 }
 
 func (w *ServerWorker) StartMeter() error {
-	// Check if another meter is running
-	if w._powerMeter.Running() {
-		return errors.New("meter already running")
-	} else if err := w._powerMeter.Start(); err != nil {
-		return err
-	} else {
-		return nil
-	}
-}
-
-func (w *ServerWorker) RPCStartMeter(payload string, reply *string) error {
 	// Check if another meter is running
 	if w._powerMeter.Running() {
 		return errors.New("meter already running")
@@ -242,39 +381,20 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 	return stats, nil
 }
 
-func (w *ServerWorker) RPCStats(payload string, reply *map[string]interface{}) error {
-	stats, err := profile.Get11Stats()
-	if err != nil {
-		return err
-	}
-	*reply = stats
-	return nil
+func (w *ServerWorker) IsAvailable() bool {
+	return w.Available
 }
 
-type BaseWorker struct {
-	// config
-	Name         string
-	Address      string
-	CpuThresh    int
-	PowerThresh  int
-	Cores        int
-	DynamicRange []int
-	ManagerView  bool
-	RPCServer    bool
-	RPCPort      string
-	config       WorkerConfig
-
-	// status
-	Available            bool
-	LatestActualPower    int
-	LatestPredictedPower int
-	LatestCPU            int
-	stats                map[string]interface{}
-	runningJobs          map[string]DockerJob
+/* --------------------
+RPC Server Worker
+----------------------*/
+type RPCServerWorker struct {
+	ServerWorker
 }
 
-func New(config WorkerConfig) (*BaseWorker, error) {
-	w := BaseWorker{}
+func (w *RPCServerWorker) Init(config WorkerConfig) error {
+	w.config = config
+
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
@@ -291,73 +411,60 @@ func New(config WorkerConfig) (*BaseWorker, error) {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	return &w, nil
-}
+	w.runningJobs = make(map[string]DockerJob)
 
-func (w *BaseWorker) StartMeter() error {
-	if res, err := http.Post(w.Address+"/meter-start", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
-		return err
-	} else {
-		return nil
-	}
-}
+	if !w.ManagerView {
+		// Initialize Power Meter
+		w._powerMeter = powerMeter.New(config.Wattsup)
 
-func (w *BaseWorker) StopMeter() error {
-	if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
-		return err
-	} else {
-		return nil
-	}
-}
-
-func (w *BaseWorker) StartJob(image string, cmd []string) error {
-	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
-	if err != nil {
-		return err
+		// Initialize Docker API
+		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+		if err != nil {
+			return err
+		}
+		w._docker = cli
+		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+		if err != nil {
+			return err
+		}
+		w.updateRunningJobs(containers)
 	}
 
-	body := bytes.NewBuffer(job)
-	if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
-		return err
-	}
 	return nil
 }
 
-func (w *BaseWorker) Stats() (map[string]interface{}, error) {
-	resp, err := http.Get(w.Address + "/stats")
-	if err != nil {
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	buf := new(bytes.Buffer)
-	stats := make(map[string]interface{})
-	io.Copy(buf, resp.Body)
-	json.Unmarshal(buf.Bytes(), &stats)
-
-	w.stats = stats
-	return stats, nil
-}
-
-func (w *BaseWorker) GetStats() map[string]interface{} {
-	return w.stats
-}
-
-func (w *ServerWorker) IsAvailable() bool {
-	return w.Available
-}
-
-func (w *BaseWorker) IsAvailable() bool {
-	resp, err := http.Get(w.Address + "/available")
-	if err != nil {
-		log.Fatalln(err)
-		return false
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode == 200 {
-		return true
+func (w *RPCServerWorker) StartMeter(_ string, reply *string) error {
+	if w._powerMeter.Running() {
+		*reply = "meter already running"
+		return errors.New("meter already running")
+	} else if err := w._powerMeter.Start(); err != nil {
+		*reply = err.Error()
+		return err
 	} else {
-		return false
+		return nil
 	}
+}
+
+func (w *RPCServerWorker) StopMeter(_ string, reply *string) error {
+	if err := w._powerMeter.Stop(); err != nil {
+		*reply = err.Error()
+		return err
+	} else {
+		w._powerMeter = powerMeter.New(w.config.Wattsup)
+		return nil
+	}
+}
+
+func (w *RPCServerWorker) Stats(_ string, reply *map[string]interface{}) error {
+	stats, err := profile.Get11Stats()
+	if err != nil {
+		return err
+	}
+	*reply = stats
+	return nil
+}
+
+func (w *RPCServerWorker) IsAvailable(_ string, reply *bool) error {
+	*reply = w.Available
+	return nil
 }
