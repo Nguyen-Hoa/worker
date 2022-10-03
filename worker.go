@@ -33,8 +33,9 @@ type WorkerConfig struct {
 }
 
 type Job struct {
-	Image string   `json:"image"`
-	Cmd   []string `json:"cmd"`
+	Image    string   `json:"image"`
+	Cmd      []string `json:"cmd"`
+	Duration string   `json:"duration"`
 }
 
 /* --------------------
@@ -61,6 +62,7 @@ type BaseWorker struct {
 	LatestCPU            int
 	stats                map[string]interface{}
 	runningJobs          map[string]DockerJob
+	jobsToKill           []DockerJob
 }
 
 func New(config WorkerConfig) (*BaseWorker, error) {
@@ -82,6 +84,8 @@ func New(config WorkerConfig) (*BaseWorker, error) {
 			return nil, err
 		}
 		w.rpcClient = client
+	} else {
+		w.Address = "http://" + w.Address + ":8080"
 	}
 
 	w.Available = false
@@ -120,8 +124,8 @@ func (w *BaseWorker) StopMeter() error {
 	return nil
 }
 
-func (w *BaseWorker) StartJob(image string, cmd []string) error {
-	job, err := json.Marshal(Job{Image: image, Cmd: cmd})
+func (w *BaseWorker) StartJob(image string, cmd []string, duration string) error {
+	job, err := json.Marshal(Job{Image: image, Cmd: cmd, Duration: duration})
 	if err != nil {
 		return err
 	}
@@ -213,6 +217,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestCPU = 0
 
 	w.runningJobs = make(map[string]DockerJob)
+	w.jobsToKill = []DockerJob{}
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -273,7 +278,7 @@ func (w *ServerWorker) VerifyContainer(ID string) bool {
 	return false
 }
 
-func (w *ServerWorker) StartJob(image string, cmd []string) error {
+func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error {
 	// verify image exists
 	if !w.VerifyImage(image) {
 		return errors.New("image does not exist")
@@ -298,6 +303,7 @@ func (w *ServerWorker) StartJob(image string, cmd []string) error {
 		BaseJob: BaseJob{
 			StartTime:    time.Now(),
 			TotalRunTime: time.Duration(0),
+			Duration:     time.Duration(duration),
 		},
 		Container: types.Container{ID: resp.ID},
 	}
@@ -325,21 +331,26 @@ func (w *ServerWorker) StopJob(ID string) error {
 func (w *ServerWorker) updateRunningJobs(containers []types.Container) error {
 	for _, container := range containers {
 		if w.VerifyContainer(container.ID) {
-			newContainer := DockerJob{
+			updatedCtr := DockerJob{
 				BaseJob:   w.runningJobs[container.ID].BaseJob,
 				Container: container,
 			}
-			newContainer.UpdateTotalRunTime(time.Now())
-			w.runningJobs[container.ID] = newContainer
+			updatedCtr.UpdateTotalRunTime(time.Now())
+			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
+				w.jobsToKill = append(w.jobsToKill, updatedCtr)
+			}
+			w.runningJobs[container.ID] = updatedCtr
 		} else {
 			log.Println("Found an orphan job")
 			newCtr := DockerJob{
 				BaseJob: BaseJob{
 					StartTime:    time.Now(),
 					TotalRunTime: time.Duration(0),
+					Duration:     time.Duration(-1),
 				},
 				Container: types.Container{ID: container.ID},
 			}
+			w.jobsToKill = append(w.jobsToKill, newCtr)
 			w.runningJobs[container.ID] = newCtr
 		}
 	}
@@ -374,15 +385,34 @@ func (w *ServerWorker) RunningJobsStats() (map[string]types.ContainerStats, erro
 }
 
 func (w *ServerWorker) Stats() (map[string]interface{}, error) {
+	done := make(chan bool, 1)
+	go func(done chan bool) {
+		w.RunningJobs()
+		log.Print(w.runningJobs)
+		log.Print(w.jobsToKill)
+		w.killJobs()
+	}(done)
+
 	stats, err := profile.Get11Stats()
 	if err != nil {
 		return nil, err
 	}
+
+	<-done
 	return stats, nil
 }
 
 func (w *ServerWorker) IsAvailable() bool {
 	return w.Available
+}
+
+func (w *ServerWorker) killJobs() error {
+	for _, job := range w.jobsToKill {
+		if err := w.StopJob(job.ID); err != nil {
+			log.Print(err)
+		}
+	}
+	return nil
 }
 
 /* --------------------

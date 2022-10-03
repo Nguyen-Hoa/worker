@@ -9,6 +9,7 @@ import (
 type BaseJob struct {
 	StartTime    time.Time
 	TotalRunTime time.Duration
+	Duration     time.Duration
 }
 
 type DockerJob struct {
