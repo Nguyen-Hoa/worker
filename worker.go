@@ -35,7 +35,7 @@ type WorkerConfig struct {
 type Job struct {
 	Image    string   `json:"image"`
 	Cmd      []string `json:"cmd"`
-	Duration string   `json:"duration"`
+	Duration int      `json:"duration"`
 }
 
 /* --------------------
@@ -124,7 +124,7 @@ func (w *BaseWorker) StopMeter() error {
 	return nil
 }
 
-func (w *BaseWorker) StartJob(image string, cmd []string, duration string) error {
+func (w *BaseWorker) StartJob(image string, cmd []string, duration int) error {
 	job, err := json.Marshal(Job{Image: image, Cmd: cmd, Duration: duration})
 	if err != nil {
 		return err
