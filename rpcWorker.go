@@ -136,22 +136,17 @@ func (w *RPCServerWorker) StartJob(job Job, reply *string) error {
 	return nil
 }
 
-func (w *RPCServerWorker) StopJob(ID string, reply *string) error {
+func (w *RPCServerWorker) stopJob(ID string) error {
 	if w.verifyContainer(ID) {
 		if err := w._docker.ContainerStop(context.Background(), ID, nil); err != nil {
-			*reply = err.Error()
 			return err
 		}
 	} else {
-		*reply = "failed to stop: Job ID not found"
-		return errors.New(*reply)
+		return errors.New("failed to stop: Job ID not found")
 	}
-
 	ctr := w.runningJobs[ID]
 	ctr.UpdateTotalRunTime(time.Now())
-
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
-	*reply = ID
 	return nil
 }
 
@@ -252,8 +247,7 @@ func (w *RPCServerWorker) IsAvailable(_ string, reply *bool) error {
 
 func (w *RPCServerWorker) killJobs() error {
 	for id := range w.jobsToKill {
-		var reply *string
-		if err := w.StopJob(id, reply); err != nil {
+		if err := w.stopJob(id); err != nil {
 			log.Print(err)
 		} else {
 			delete(w.jobsToKill, id)
