@@ -31,7 +31,6 @@ func New(config WorkerConfig) (*BaseWorker, error) {
 	} else {
 		w.Address = "http://" + w.Address + ":8080"
 	}
-	log.Print("init'd server with: ", w.RPCServer, w.RPCPort, w.Address, w.rpcClient)
 	w.Available = false
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
@@ -69,11 +68,7 @@ func (w *BaseWorker) StopMeter() error {
 }
 
 func (w *BaseWorker) StartJob(image string, cmd []string, duration int) error {
-	job, err := json.Marshal(Job{Image: image, Cmd: cmd, Duration: duration})
-	if err != nil {
-		return err
-	}
-	log.Print(w.RPCServer)
+	job := Job{Image: image, Cmd: cmd, Duration: duration}
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StartJob", job, &reply); err != nil {
@@ -81,6 +76,10 @@ func (w *BaseWorker) StartJob(image string, cmd []string, duration int) error {
 			return err
 		}
 	} else {
+		job, err := json.Marshal(job)
+		if err != nil {
+			return err
+		}
 		body := bytes.NewBuffer(job)
 		if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
 			return err
