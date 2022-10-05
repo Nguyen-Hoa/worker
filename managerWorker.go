@@ -141,7 +141,7 @@ func (w *ManagerWorker) IsAvailable() bool {
 	if w.RPCServer {
 		var available bool
 		if err := w.rpcClient.Call("RPCServerWorker.IsAvailable", "", &available); err != nil {
-			log.Fatalln(err)
+			log.Print(err)
 			return false
 		}
 	} else {
