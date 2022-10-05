@@ -36,6 +36,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
+	w.runningJobs = make(map[string]DockerJob)
 
 	return &w, nil
 }
