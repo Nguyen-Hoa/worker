@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"sync"
 	"time"
 
 	profile "github.com/Nguyen-Hoa/profile"
@@ -182,14 +181,15 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[s
 	return updatedRunningJobs, nil
 }
 
-func (w *RPCServerWorker) GetRunningJobs(_ string, reply *[]types.Container) error {
-	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
+func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]DockerJob) error {
+	containers, err := w.getRunningJobs()
 	if err != nil {
 		return err
 	}
 
-	w.updateRunningJobs(containers)
-	*reply = containers
+	runningJobs, _ := w.updateRunningJobs(containers)
+	w.killJobs()
+	*reply = runningJobs
 	return nil
 }
 
@@ -223,31 +223,15 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.
 }
 
 func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
-	var pollWaitGroup sync.WaitGroup
 
-	pollWaitGroup.Add(1)
-	go func() {
-		defer pollWaitGroup.Done()
-		w.getRunningJobs()
-		w.killJobs()
-	}()
-
-	pollWaitGroup.Add(1)
-	var stats *map[string]interface{}
-	go func(stats *map[string]interface{}) {
-		defer pollWaitGroup.Done()
-		if res, err := profile.Get11Stats(); err == nil {
-			*stats = res
-		} else {
-			log.Print(err)
-		}
-	}(stats)
-
-	pollWaitGroup.Wait()
-	*reply = map[string]interface{}{
-		"runningJobs": w.runningJobs,
-		"stats":       stats,
+	if res, err := profile.Get11Stats(); err == nil {
+		log.Print(res)
+		*reply = res
+	} else {
+		log.Print(err)
+		return err
 	}
+
 	return nil
 }
 

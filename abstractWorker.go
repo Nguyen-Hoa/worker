@@ -7,6 +7,7 @@ import (
 	"log"
 	http "net/http"
 	"net/rpc"
+	"sync"
 )
 
 func New(config WorkerConfig) (*AbstractWorker, error) {
@@ -90,12 +91,31 @@ func (w *AbstractWorker) StartJob(image string, cmd []string, duration int) erro
 
 func (w *AbstractWorker) Stats() (map[string]interface{}, error) {
 	if w.RPCServer {
-		var reply map[string]interface{}
-		if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
-			return nil, err
-		}
-		w.stats = reply
-		return reply, nil
+		var pollWaitGroup sync.WaitGroup
+		var errors = make([]string, 2)
+
+		pollWaitGroup.Add(1)
+		go func() {
+			defer pollWaitGroup.Done()
+			var reply map[string]interface{}
+			if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
+				errors = append(errors, err.Error())
+			}
+			w.stats = reply
+		}()
+
+		pollWaitGroup.Add(1)
+		go func() {
+			defer pollWaitGroup.Done()
+			var reply map[string]DockerJob
+			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobs", "", &reply); err != nil {
+				errors = append(errors, err.Error())
+			}
+			w.runningJobs = reply
+		}()
+
+		pollWaitGroup.Wait()
+		return w.stats, nil
 	} else {
 		resp, err := http.Get(w.Address + "/stats")
 		if err != nil {
