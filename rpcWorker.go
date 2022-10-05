@@ -138,7 +138,8 @@ func (w *RPCServerWorker) StartJob(job Job, reply *string) error {
 
 func (w *RPCServerWorker) stopJob(ID string) error {
 	if w.verifyContainer(ID) {
-		if err := w._docker.ContainerStop(context.Background(), ID, nil); err != nil {
+		timeout := time.Duration(-1)
+		if err := w._docker.ContainerStop(context.Background(), ID, &timeout); err != nil {
 			return err
 		}
 	} else {
