@@ -55,9 +55,22 @@ type worker struct {
 }
 
 /* --------------------
-Abstract Worker
+Worker (Abstract)
 ----------------------*/
-type AbstractWorker struct {
+// type Worker interface {
+// 	Init()
+// 	StartMeter()
+// 	StopMeter()
+// 	StartJob()
+// 	StopJob()
+// 	Poll()
+// 	IsAvailable()
+// }
+
+/* --------------------
+Manager Worker
+----------------------*/
+type ManagerWorker struct {
 	worker
 }
 

@@ -10,8 +10,8 @@ import (
 	"sync"
 )
 
-func New(config WorkerConfig) (*AbstractWorker, error) {
-	w := AbstractWorker{}
+func New(config WorkerConfig) (*ManagerWorker, error) {
+	w := ManagerWorker{}
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
@@ -40,7 +40,7 @@ func New(config WorkerConfig) (*AbstractWorker, error) {
 	return &w, nil
 }
 
-func (w *AbstractWorker) StartMeter() error {
+func (w *ManagerWorker) StartMeter() error {
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StartMeter", "", &reply); err != nil {
@@ -54,7 +54,7 @@ func (w *AbstractWorker) StartMeter() error {
 	return nil
 }
 
-func (w *AbstractWorker) StopMeter() error {
+func (w *ManagerWorker) StopMeter() error {
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StopMeter", "", &reply); err != nil {
@@ -68,7 +68,7 @@ func (w *AbstractWorker) StopMeter() error {
 	return nil
 }
 
-func (w *AbstractWorker) StartJob(image string, cmd []string, duration int) error {
+func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error {
 	job := Job{Image: image, Cmd: cmd, Duration: duration}
 	if w.RPCServer {
 		var reply string
@@ -89,7 +89,7 @@ func (w *AbstractWorker) StartJob(image string, cmd []string, duration int) erro
 	return nil
 }
 
-func (w *AbstractWorker) Stats() (map[string]interface{}, error) {
+func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 	if w.RPCServer {
 		var pollWaitGroup sync.WaitGroup
 		var errors = make([]string, 2)
@@ -133,11 +133,11 @@ func (w *AbstractWorker) Stats() (map[string]interface{}, error) {
 	}
 }
 
-func (w *AbstractWorker) GetStats() map[string]interface{} {
+func (w *ManagerWorker) GetStats() map[string]interface{} {
 	return w.stats
 }
 
-func (w *AbstractWorker) IsAvailable() bool {
+func (w *ManagerWorker) IsAvailable() bool {
 	if w.RPCServer {
 		var available bool
 		if err := w.rpcClient.Call("RPCServerWorker.IsAvailable", "", &available); err != nil {
