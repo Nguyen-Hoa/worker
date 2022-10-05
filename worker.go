@@ -30,7 +30,7 @@ type Job struct {
 /* --------------------
 Base Worker
 ----------------------*/
-type BaseWorker struct {
+type worker struct {
 	// config
 	Name         string
 	Address      string
@@ -55,10 +55,17 @@ type BaseWorker struct {
 }
 
 /* --------------------
-Server Worker
+Abstract Worker
+----------------------*/
+type AbstractWorker struct {
+	worker
+}
+
+/* --------------------
+HTTP Server Worker
 ----------------------*/
 type ServerWorker struct {
-	BaseWorker
+	worker
 
 	_powerMeter *powerMeter.Wattsup
 	_docker     *client.Client
@@ -68,5 +75,8 @@ type ServerWorker struct {
 RPC Server Worker
 ----------------------*/
 type RPCServerWorker struct {
-	ServerWorker
+	worker
+
+	_powerMeter *powerMeter.Wattsup
+	_docker     *client.Client
 }

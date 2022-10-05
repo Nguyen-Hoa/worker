@@ -9,8 +9,8 @@ import (
 	"net/rpc"
 )
 
-func New(config WorkerConfig) (*BaseWorker, error) {
-	w := BaseWorker{}
+func New(config WorkerConfig) (*AbstractWorker, error) {
+	w := AbstractWorker{}
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
@@ -39,7 +39,7 @@ func New(config WorkerConfig) (*BaseWorker, error) {
 	return &w, nil
 }
 
-func (w *BaseWorker) StartMeter() error {
+func (w *AbstractWorker) StartMeter() error {
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StartMeter", "", &reply); err != nil {
@@ -53,7 +53,7 @@ func (w *BaseWorker) StartMeter() error {
 	return nil
 }
 
-func (w *BaseWorker) StopMeter() error {
+func (w *AbstractWorker) StopMeter() error {
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StopMeter", "", &reply); err != nil {
@@ -67,7 +67,7 @@ func (w *BaseWorker) StopMeter() error {
 	return nil
 }
 
-func (w *BaseWorker) StartJob(image string, cmd []string, duration int) error {
+func (w *AbstractWorker) StartJob(image string, cmd []string, duration int) error {
 	job := Job{Image: image, Cmd: cmd, Duration: duration}
 	if w.RPCServer {
 		var reply string
@@ -88,10 +88,10 @@ func (w *BaseWorker) StartJob(image string, cmd []string, duration int) error {
 	return nil
 }
 
-func (w *BaseWorker) Stats() (map[string]interface{}, error) {
+func (w *AbstractWorker) Stats() (map[string]interface{}, error) {
 	if w.RPCServer {
 		var reply map[string]interface{}
-		if err := w.rpcClient.Call("RPCServerWorker.Stats", "", &reply); err != nil {
+		if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
 			return nil, err
 		}
 		w.stats = reply
@@ -113,11 +113,11 @@ func (w *BaseWorker) Stats() (map[string]interface{}, error) {
 	}
 }
 
-func (w *BaseWorker) GetStats() map[string]interface{} {
+func (w *AbstractWorker) GetStats() map[string]interface{} {
 	return w.stats
 }
 
-func (w *BaseWorker) IsAvailable() bool {
+func (w *AbstractWorker) IsAvailable() bool {
 	if w.RPCServer {
 		var available bool
 		if err := w.rpcClient.Call("RPCServerWorker.IsAvailable", "", &available); err != nil {
