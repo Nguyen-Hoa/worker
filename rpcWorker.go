@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	profile "github.com/Nguyen-Hoa/profile"
@@ -49,7 +50,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 		if err != nil {
 			return err
 		}
-		w.updateGetRunningJobs(containers)
+		w.updateRunningJobs(containers)
 	}
 
 	return nil
@@ -150,8 +151,8 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 	return nil
 }
 
-func (w *RPCServerWorker) updateGetRunningJobs(containers []types.Container) error {
-	updatedGetRunningJobs := make(map[string]DockerJob)
+func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[string]DockerJob, error) {
+	updatedRunningJobs := make(map[string]DockerJob)
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
 			updatedCtr := DockerJob{
@@ -162,7 +163,7 @@ func (w *RPCServerWorker) updateGetRunningJobs(containers []types.Container) err
 			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
 				w.jobsToKill[updatedCtr.ID] = updatedCtr
 			}
-			updatedGetRunningJobs[container.ID] = updatedCtr
+			updatedRunningJobs[container.ID] = updatedCtr
 		} else {
 			log.Println("Found an orphan job")
 			newCtr := DockerJob{
@@ -177,8 +178,8 @@ func (w *RPCServerWorker) updateGetRunningJobs(containers []types.Container) err
 			w.runningJobs[container.ID] = newCtr
 		}
 	}
-	w.runningJobs = updatedGetRunningJobs
-	return nil
+	w.runningJobs = updatedRunningJobs
+	return updatedRunningJobs, nil
 }
 
 func (w *RPCServerWorker) GetRunningJobs(_ string, reply *[]types.Container) error {
@@ -186,18 +187,19 @@ func (w *RPCServerWorker) GetRunningJobs(_ string, reply *[]types.Container) err
 	if err != nil {
 		return err
 	}
-	w.updateGetRunningJobs(containers)
+
+	w.updateRunningJobs(containers)
 	*reply = containers
 	return nil
 }
 
-func (w *RPCServerWorker) getRunningJobs() error {
+func (w *RPCServerWorker) getRunningJobs() ([]types.Container, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	w.updateGetRunningJobs(containers)
-	return nil
+	w.updateRunningJobs(containers)
+	return containers, nil
 }
 
 func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.ContainerStats) error {
@@ -205,7 +207,7 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.
 	if err != nil {
 		return err
 	}
-	w.updateGetRunningJobs(containers)
+	w.updateRunningJobs(containers)
 
 	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
 	for _, container := range containers {
@@ -220,23 +222,32 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.
 	return nil
 }
 
-func (w *RPCServerWorker) Stats(_ string, reply *map[string]interface{}) error {
-	done := make(chan bool, 1)
-	go func(done chan bool) {
+func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
+	var pollWaitGroup sync.WaitGroup
+
+	pollWaitGroup.Add(1)
+	go func() {
+		defer pollWaitGroup.Done()
 		w.getRunningJobs()
-		log.Print("running jobs: ", len(w.runningJobs))
-		log.Print("killing jobs: ", len(w.jobsToKill))
 		w.killJobs()
-		done <- true
-	}(done)
+	}()
 
-	stats, err := profile.Get11Stats()
-	if err != nil {
-		return err
+	pollWaitGroup.Add(1)
+	var stats *map[string]interface{}
+	go func(stats *map[string]interface{}) {
+		defer pollWaitGroup.Done()
+		if res, err := profile.Get11Stats(); err == nil {
+			*stats = res
+		} else {
+			log.Print(err)
+		}
+	}(stats)
+
+	pollWaitGroup.Wait()
+	*reply = map[string]interface{}{
+		"runningJobs": w.runningJobs,
+		"stats":       stats,
 	}
-
-	<-done
-	*reply = stats
 	return nil
 }
 
