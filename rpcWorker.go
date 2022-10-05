@@ -32,7 +32,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	w.runningJobs = make(map[string]DockerJob)
+	w.RunningJobs = make(map[string]DockerJob)
 	w.jobsToKill = make(map[string]DockerJob)
 
 	if !w.ManagerView {
@@ -90,7 +90,7 @@ func (w *RPCServerWorker) verifyImage(ID string) bool {
 }
 
 func (w *RPCServerWorker) verifyContainer(ID string) bool {
-	if _, exists := w.runningJobs[ID]; exists {
+	if _, exists := w.RunningJobs[ID]; exists {
 		return true
 	}
 	return false
@@ -130,7 +130,7 @@ func (w *RPCServerWorker) StartJob(job Job, reply *string) error {
 		},
 		Container: types.Container{ID: resp.ID},
 	}
-	w.runningJobs[resp.ID] = newCtr
+	w.RunningJobs[resp.ID] = newCtr
 	*reply = resp.ID
 
 	return nil
@@ -144,7 +144,7 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 	} else {
 		return errors.New("failed to stop: Job ID not found")
 	}
-	ctr := w.runningJobs[ID]
+	ctr := w.RunningJobs[ID]
 	ctr.UpdateTotalRunTime(time.Now())
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
 	return nil
@@ -155,7 +155,7 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[s
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
 			updatedCtr := DockerJob{
-				BaseJob:   w.runningJobs[container.ID].BaseJob,
+				BaseJob:   w.RunningJobs[container.ID].BaseJob,
 				Container: container,
 			}
 			updatedCtr.UpdateTotalRunTime(time.Now())
@@ -174,10 +174,10 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[s
 				Container: types.Container{ID: container.ID},
 			}
 			w.jobsToKill[newCtr.ID] = newCtr
-			w.runningJobs[container.ID] = newCtr
+			w.RunningJobs[container.ID] = newCtr
 		}
 	}
-	w.runningJobs = updatedRunningJobs
+	w.RunningJobs = updatedRunningJobs
 	return updatedRunningJobs, nil
 }
 
@@ -187,9 +187,9 @@ func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]DockerJob) 
 		return err
 	}
 
-	runningJobs, _ := w.updateRunningJobs(containers)
+	RunningJobs, _ := w.updateRunningJobs(containers)
 	w.killJobs()
-	*reply = runningJobs
+	*reply = RunningJobs
 	return nil
 }
 
@@ -246,7 +246,7 @@ func (w *RPCServerWorker) killJobs() error {
 			log.Print(err)
 		} else {
 			delete(w.jobsToKill, id)
-			delete(w.runningJobs, id)
+			delete(w.RunningJobs, id)
 		}
 	}
 	return nil

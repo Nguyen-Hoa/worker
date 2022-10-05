@@ -32,7 +32,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	w.runningJobs = make(map[string]DockerJob)
+	w.RunningJobs = make(map[string]DockerJob)
 	w.jobsToKill = make(map[string]DockerJob)
 
 	if !w.ManagerView {
@@ -88,7 +88,7 @@ func (w *ServerWorker) verifyImage(ID string) bool {
 }
 
 func (w *ServerWorker) verifyContainer(ID string) bool {
-	if _, exists := w.runningJobs[ID]; exists {
+	if _, exists := w.RunningJobs[ID]; exists {
 		return true
 	}
 	return false
@@ -125,7 +125,7 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 		},
 		Container: types.Container{ID: resp.ID},
 	}
-	w.runningJobs[resp.ID] = newCtr
+	w.RunningJobs[resp.ID] = newCtr
 
 	return nil
 }
@@ -139,7 +139,7 @@ func (w *ServerWorker) StopJob(ID string) error {
 		return errors.New("failed to stop: Job ID not found")
 	}
 
-	ctr := w.runningJobs[ID]
+	ctr := w.RunningJobs[ID]
 	ctr.UpdateTotalRunTime(time.Now())
 
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
@@ -151,7 +151,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
 			updatedCtr := DockerJob{
-				BaseJob:   w.runningJobs[container.ID].BaseJob,
+				BaseJob:   w.RunningJobs[container.ID].BaseJob,
 				Container: container,
 			}
 			updatedCtr.UpdateTotalRunTime(time.Now())
@@ -170,10 +170,10 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 				Container: types.Container{ID: container.ID},
 			}
 			w.jobsToKill[newCtr.ID] = newCtr
-			w.runningJobs[container.ID] = newCtr
+			w.RunningJobs[container.ID] = newCtr
 		}
 	}
-	w.runningJobs = updatedGetRunningJobs
+	w.RunningJobs = updatedGetRunningJobs
 	return nil
 }
 
@@ -208,7 +208,7 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 	done := make(chan bool, 1)
 	go func(done chan bool) {
 		w.GetRunningJobs()
-		log.Print("running jobs: ", len(w.runningJobs))
+		log.Print("running jobs: ", len(w.RunningJobs))
 		log.Print("killing jobs: ", len(w.jobsToKill))
 		w.killJobs()
 		done <- true
@@ -232,7 +232,7 @@ func (w *ServerWorker) killJobs() error {
 			log.Print(err)
 		} else {
 			delete(w.jobsToKill, id)
-			delete(w.runningJobs, id)
+			delete(w.RunningJobs, id)
 		}
 	}
 	return nil

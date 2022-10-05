@@ -50,7 +50,7 @@ type worker struct {
 	LatestPredictedPower int
 	LatestCPU            int
 	stats                map[string]interface{}
-	runningJobs          map[string]DockerJob
+	RunningJobs          map[string]DockerJob
 	jobsToKill           map[string]DockerJob
 }
 
