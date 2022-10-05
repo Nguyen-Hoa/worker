@@ -46,9 +46,9 @@ type worker struct {
 
 	// status
 	Available            bool
-	LatestActualPower    int
-	LatestPredictedPower int
-	LatestCPU            int
+	LatestActualPower    float32
+	LatestPredictedPower float32
+	LatestCPU            float32
 	stats                map[string]interface{}
 	RunningJobs          map[string]DockerJob
 	jobsToKill           map[string]DockerJob
