@@ -11,10 +11,10 @@ import (
 type WorkerConfig struct {
 	Name         string                 `json:"name"`
 	Address      string                 `json:"address"`
-	CpuThresh    int                    `json:"cpuThresh"`
-	PowerThresh  int                    `json:"powerThresh"`
+	CpuThresh    float32                `json:"cpuThresh"`
+	PowerThresh  float32                `json:"powerThresh"`
 	Cores        int                    `json:"cores"`
-	DynamicRange []int                  `json:"dynamicRange"`
+	DynamicRange []float32              `json:"dynamicRange"`
 	ManagerView  bool                   `json:"managerView"`
 	RPCServer    bool                   `json:"rpcServer"`
 	RPCPort      string                 `json:"rpcPort"`
@@ -34,10 +34,10 @@ type worker struct {
 	// config
 	Name         string
 	Address      string
-	CpuThresh    int
-	PowerThresh  int
+	CpuThresh    float32
+	PowerThresh  float32
 	Cores        int
-	DynamicRange []int
+	DynamicRange []float32
 	ManagerView  bool
 	RPCServer    bool
 	RPCPort      string
