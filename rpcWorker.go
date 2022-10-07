@@ -184,7 +184,7 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (job.S
 	return w.RunningJobs, nil
 }
 
-func (w *RPCServerWorker) GetRunningJobs(_ string, reply *job.SharedDockerJobsMap) error {
+func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]job.DockerJob) error {
 	containers, err := w.getRunningJobs()
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (w *RPCServerWorker) GetRunningJobs(_ string, reply *job.SharedDockerJobsMa
 
 	RunningJobs, _ := w.updateRunningJobs(containers)
 	w.killJobs()
-	*reply = RunningJobs
+	*reply = RunningJobs.Snap()
 	return nil
 }
 
@@ -226,7 +226,6 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.
 }
 
 func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
-
 	if res, err := profile.Get11Stats(); err == nil {
 		log.Print(res)
 		*reply = res

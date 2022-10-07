@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	http "net/http"
@@ -94,30 +95,45 @@ func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error
 
 func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 	if w.RPCServer {
+		log.Print("rpc stats requested")
 		var pollWaitGroup sync.WaitGroup
-		var errors = make([]string, 2)
+		var errs = make([]string, 0)
 
 		pollWaitGroup.Add(1)
 		go func() {
+			log.Print("polling")
 			defer pollWaitGroup.Done()
 			var reply map[string]interface{}
 			if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
-				errors = append(errors, err.Error())
+				log.Print(err)
+				errs = append(errs, err.Error())
 			}
+			log.Print("polling doneA")
 			w.stats = reply
+			log.Print("polling doneB")
 		}()
 
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
-			var reply job.SharedDockerJobsMap
+			var reply map[string]job.DockerJob
+			log.Print("getting running jobs")
 			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobs", "", &reply); err != nil {
-				errors = append(errors, err.Error())
+				log.Print(err)
+				errs = append(errs, err.Error())
 			}
-			w.RunningJobs = reply
+
+			log.Print("got running jobs")
+			w.RunningJobs.InitFromMap(reply)
+			log.Print("got running jobs done")
 		}()
 
 		pollWaitGroup.Wait()
+
+		log.Print("POLL DONE")
+		if len(errs) > 0 {
+			return nil, errors.New(errs[0])
+		}
 		return w.stats, nil
 	} else {
 		resp, err := http.Get(w.Address + "/stats")
