@@ -98,19 +98,19 @@ func (w *RPCServerWorker) verifyContainer(ID string) bool {
 	return false
 }
 
-func (w *RPCServerWorker) StartJob(job job.Job, reply *string) error {
+func (w *RPCServerWorker) StartJob(j job.Job, reply *string) error {
 	log.Print("recvd start job")
 
 	// verify image exists
-	if !w.verifyImage(job.Image) {
+	if !w.verifyImage(j.Image) {
 		*reply = "image does not exist"
 		return errors.New("image does not exist")
 	}
 
 	// create image
 	resp, err := w._docker.ContainerCreate(context.Background(), &container.Config{
-		Image: job.Image,
-		Cmd:   job.Cmd,
+		Image: j.Image,
+		Cmd:   j.Cmd,
 	}, nil, nil, nil, "")
 	if err != nil {
 		*reply = err.Error()
@@ -122,13 +122,12 @@ func (w *RPCServerWorker) StartJob(job job.Job, reply *string) error {
 		*reply = err.Error()
 		return err
 	}
-
 	// update list of running jobs
 	newCtr := job.DockerJob{
 		BaseJob: job.BaseJob{
 			StartTime:    time.Now(),
 			TotalRunTime: time.Duration(0),
-			Duration:     time.Duration(job.Duration) * time.Second,
+			Duration:     time.Duration(j.Duration) * time.Second,
 		},
 		Container: types.Container{ID: resp.ID},
 	}

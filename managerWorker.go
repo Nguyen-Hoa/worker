@@ -72,19 +72,19 @@ func (w *ManagerWorker) StopMeter() error {
 }
 
 func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error {
-	job := job.Job{Image: image, Cmd: cmd, Duration: duration}
+	j := job.Job{Image: image, Cmd: cmd, Duration: duration}
 	if w.RPCServer {
 		var reply string
-		if err := w.rpcClient.Call("RPCServerWorker.StartJob", job, &reply); err != nil {
+		if err := w.rpcClient.Call("RPCServerWorker.StartJob", j, &reply); err != nil {
 			log.Print(err, reply)
 			return err
 		}
 	} else {
-		job, err := json.Marshal(job)
+		j, err := json.Marshal(j)
 		if err != nil {
 			return err
 		}
-		body := bytes.NewBuffer(job)
+		body := bytes.NewBuffer(j)
 		if _, err := http.Post(w.Address+"/execute", "application/json", body); err != nil {
 			return err
 		}
