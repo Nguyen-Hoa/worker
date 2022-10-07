@@ -33,8 +33,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	w.RunningJobs = make(map[string]job.DockerJob)
-	w.jobsToKill = make(map[string]job.DockerJob)
+	w.RunningJobs = job.SharedDockerJobsMap{}
+	w.jobsToKill = job.SharedDockerJobsMap{}
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -89,7 +89,7 @@ func (w *ServerWorker) verifyImage(ID string) bool {
 }
 
 func (w *ServerWorker) verifyContainer(ID string) bool {
-	if _, exists := w.RunningJobs[ID]; exists {
+	if _, exists := w.RunningJobs.Get(ID); exists {
 		return true
 	}
 	return false
@@ -126,7 +126,7 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 		},
 		Container: types.Container{ID: resp.ID},
 	}
-	w.RunningJobs[resp.ID] = newCtr
+	w.RunningJobs.Update(resp.ID, newCtr)
 
 	return nil
 }
@@ -140,7 +140,7 @@ func (w *ServerWorker) StopJob(ID string) error {
 		return errors.New("failed to stop: Job ID not found")
 	}
 
-	ctr := w.RunningJobs[ID]
+	ctr, _ := w.RunningJobs.Get(ID)
 	ctr.UpdateTotalRunTime(time.Now())
 
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
@@ -148,18 +148,18 @@ func (w *ServerWorker) StopJob(ID string) error {
 }
 
 func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error {
-	updatedGetRunningJobs := make(map[string]job.DockerJob)
+	ids := make([]string, 0)
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
+			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
-				BaseJob:   w.RunningJobs[container.ID].BaseJob,
+				BaseJob:   base.BaseJob,
 				Container: container,
 			}
 			updatedCtr.UpdateTotalRunTime(time.Now())
 			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
-				w.jobsToKill[updatedCtr.ID] = updatedCtr
+				w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
 			}
-			updatedGetRunningJobs[container.ID] = updatedCtr
 		} else {
 			log.Println("Found an orphan job")
 			newCtr := job.DockerJob{
@@ -170,11 +170,12 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 				},
 				Container: types.Container{ID: container.ID},
 			}
-			w.jobsToKill[newCtr.ID] = newCtr
-			w.RunningJobs[container.ID] = newCtr
+			w.jobsToKill.Update(newCtr.ID, newCtr)
+			w.RunningJobs.Update(container.ID, newCtr)
 		}
+		ids = append(ids, container.ID)
 	}
-	w.RunningJobs = updatedGetRunningJobs
+	w.RunningJobs.Refresh(ids)
 	return nil
 }
 
@@ -209,8 +210,6 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 	done := make(chan bool, 1)
 	go func(done chan bool) {
 		w.GetRunningJobs()
-		log.Print("running jobs: ", len(w.RunningJobs))
-		log.Print("killing jobs: ", len(w.jobsToKill))
 		w.killJobs()
 		done <- true
 	}(done)
@@ -228,12 +227,12 @@ func (w *ServerWorker) IsAvailable() bool {
 }
 
 func (w *ServerWorker) killJobs() error {
-	for id := range w.jobsToKill {
+	for _, id := range w.jobsToKill.Keys() {
 		if err := w.StopJob(id); err != nil {
 			log.Print(err)
 		} else {
-			delete(w.jobsToKill, id)
-			delete(w.RunningJobs, id)
+			w.jobsToKill.Delete(id)
+			w.RunningJobs.Delete(id)
 		}
 	}
 	return nil
