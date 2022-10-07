@@ -40,6 +40,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 	w.RunningJobs = job.SharedDockerJobsMap{}
+	w.RunningJobs.Init()
 
 	return &w, nil
 }

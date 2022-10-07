@@ -36,6 +36,8 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 
 	w.RunningJobs = job.SharedDockerJobsMap{}
 	w.jobsToKill = job.SharedDockerJobsMap{}
+	w.RunningJobs.Init()
+	w.jobsToKill.Init()
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -99,8 +101,6 @@ func (w *RPCServerWorker) verifyContainer(ID string) bool {
 }
 
 func (w *RPCServerWorker) StartJob(j job.Job, reply *string) error {
-	log.Print("recvd start job")
-
 	// verify image exists
 	if !w.verifyImage(j.Image) {
 		*reply = "image does not exist"
@@ -227,7 +227,6 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.
 
 func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
 	if res, err := profile.Get11Stats(); err == nil {
-		log.Print(res)
 		*reply = res
 	} else {
 		log.Print(err)
