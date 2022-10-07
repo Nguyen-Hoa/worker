@@ -2,6 +2,8 @@ github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOEl
 github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/Microsoft/go-winio v0.6.0 h1:slsWYD/zyx7lCXoZVlvQrj0hPTM1HI4+v1sIda2yDvg=
 github.com/Microsoft/go-winio v0.6.0/go.mod h1:cTAf44im0RAYeL23bpB+fzCyDH2MJiz2BO69KH/soAE=
+github.com/Nguyen-Hoa/job v0.0.1 h1:BZrCQU28q7PZPwyhD1+jTGJer2y5SrXYW+9M02iT7BU=
+github.com/Nguyen-Hoa/job v0.0.1/go.mod h1:/PEf7Uln3SqFlelfdy5+4Rez6Y2KZc31YFsx/zYzGUI=
 github.com/Nguyen-Hoa/profile v1.2.5 h1:nBFsZ+SpTIh0YF2c1hmLqKU9SG7qR9KsQ9pNOWOD+RQ=
 github.com/Nguyen-Hoa/profile v1.2.5/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/wattsup v1.4.1 h1:aiId0st4WGkVkHbeYYjUQYaIJfmyNNX7dtQmc2un9FU=
@@ -136,5 +138,5 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
-gotest.tools/v3 v3.3.0 h1:MfDY1b1/0xN1CyMlQDac0ziEy9zJQd9CXBRRDHw2jJo=
-gotest.tools/v3 v3.3.0/go.mod h1:Mcr9QNxkg0uMvy/YElmo4SpXgJKWgQvYrT7Kw5RzJ1A=
+gotest.tools/v3 v3.4.0 h1:ZazjZUfuVeZGLAmlKKuyv3IKP5orXcwtOwDQH6YVr6o=
+gotest.tools/v3 v3.4.0/go.mod h1:CtbdzLSsqVhDgMtKsx03ird5YTGB3ar27v0u/yKBW5g=

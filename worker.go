@@ -3,6 +3,7 @@ package worker
 import (
 	"net/rpc"
 
+	job "github.com/Nguyen-Hoa/job"
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
 
 	"github.com/docker/docker/client"
@@ -19,12 +20,6 @@ type WorkerConfig struct {
 	RPCServer    bool                   `json:"rpcServer"`
 	RPCPort      string                 `json:"rpcPort"`
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
-}
-
-type Job struct {
-	Image    string   `json:"image"`
-	Cmd      []string `json:"cmd"`
-	Duration int      `json:"duration"`
 }
 
 /* --------------------
@@ -50,8 +45,8 @@ type worker struct {
 	LatestPredictedPower float32
 	LatestCPU            float32
 	stats                map[string]interface{}
-	RunningJobs          map[string]DockerJob
-	jobsToKill           map[string]DockerJob
+	RunningJobs          map[string]job.DockerJob
+	jobsToKill           map[string]job.DockerJob
 }
 
 /* --------------------

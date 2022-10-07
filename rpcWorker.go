@@ -6,8 +6,10 @@ import (
 	"log"
 	"time"
 
+	job "github.com/Nguyen-Hoa/job"
 	profile "github.com/Nguyen-Hoa/profile"
 	powerMeter "github.com/Nguyen-Hoa/wattsup"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -32,8 +34,8 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
-	w.RunningJobs = make(map[string]DockerJob)
-	w.jobsToKill = make(map[string]DockerJob)
+	w.RunningJobs = make(map[string]job.DockerJob)
+	w.jobsToKill = make(map[string]job.DockerJob)
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -96,7 +98,7 @@ func (w *RPCServerWorker) verifyContainer(ID string) bool {
 	return false
 }
 
-func (w *RPCServerWorker) StartJob(job Job, reply *string) error {
+func (w *RPCServerWorker) StartJob(job job.Job, reply *string) error {
 	log.Print("recvd start job")
 
 	// verify image exists
@@ -122,8 +124,8 @@ func (w *RPCServerWorker) StartJob(job Job, reply *string) error {
 	}
 
 	// update list of running jobs
-	newCtr := DockerJob{
-		BaseJob: BaseJob{
+	newCtr := job.DockerJob{
+		BaseJob: job.BaseJob{
 			StartTime:    time.Now(),
 			TotalRunTime: time.Duration(0),
 			Duration:     time.Duration(job.Duration) * time.Second,
@@ -151,11 +153,11 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 	return nil
 }
 
-func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[string]DockerJob, error) {
-	updatedRunningJobs := make(map[string]DockerJob)
+func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[string]job.DockerJob, error) {
+	updatedRunningJobs := make(map[string]job.DockerJob)
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
-			updatedCtr := DockerJob{
+			updatedCtr := job.DockerJob{
 				BaseJob:   w.RunningJobs[container.ID].BaseJob,
 				Container: container,
 			}
@@ -166,8 +168,8 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[s
 			updatedRunningJobs[container.ID] = updatedCtr
 		} else {
 			log.Println("Found an orphan job")
-			newCtr := DockerJob{
-				BaseJob: BaseJob{
+			newCtr := job.DockerJob{
+				BaseJob: job.BaseJob{
 					StartTime:    time.Now(),
 					TotalRunTime: time.Duration(0),
 					Duration:     time.Duration(-1),
@@ -182,7 +184,7 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (map[s
 	return updatedRunningJobs, nil
 }
 
-func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]DockerJob) error {
+func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]job.DockerJob) error {
 	containers, err := w.getRunningJobs()
 	if err != nil {
 		return err

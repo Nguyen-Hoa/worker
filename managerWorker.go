@@ -8,6 +8,8 @@ import (
 	http "net/http"
 	"net/rpc"
 	"sync"
+
+	job "github.com/Nguyen-Hoa/job"
 )
 
 func New(config WorkerConfig) (*ManagerWorker, error) {
@@ -36,7 +38,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
-	w.RunningJobs = make(map[string]DockerJob)
+	w.RunningJobs = make(map[string]job.DockerJob)
 
 	return &w, nil
 }
@@ -70,7 +72,7 @@ func (w *ManagerWorker) StopMeter() error {
 }
 
 func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error {
-	job := Job{Image: image, Cmd: cmd, Duration: duration}
+	job := job.Job{Image: image, Cmd: cmd, Duration: duration}
 	if w.RPCServer {
 		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StartJob", job, &reply); err != nil {
@@ -108,7 +110,7 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
-			var reply map[string]DockerJob
+			var reply map[string]job.DockerJob
 			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobs", "", &reply); err != nil {
 				errors = append(errors, err.Error())
 			}

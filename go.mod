@@ -5,6 +5,7 @@ go 1.17
 // replace github.com/Nguyen-Hoa/profile v0.0.0-20220914154622-1c9787b9a255 => ../profile
 
 require (
+	github.com/Nguyen-Hoa/job v0.0.1
 	github.com/Nguyen-Hoa/profile v1.2.5
 	github.com/Nguyen-Hoa/wattsup v1.4.1
 	github.com/docker/docker v20.10.18+incompatible
@@ -34,5 +35,4 @@ require (
 	golang.org/x/sys v0.0.0-20220928140112-f11e5e49a4ec // indirect
 	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	gotest.tools/v3 v3.3.0 // indirect
 )
