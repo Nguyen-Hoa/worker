@@ -38,7 +38,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
-	w.RunningJobs = make(map[string]job.DockerJob)
+	w.RunningJobs = job.SharedDockerJobsMap{}
 
 	return &w, nil
 }
@@ -110,7 +110,7 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
-			var reply map[string]job.DockerJob
+			var reply job.SharedDockerJobsMap
 			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobs", "", &reply); err != nil {
 				errors = append(errors, err.Error())
 			}
