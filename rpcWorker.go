@@ -61,9 +61,17 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 
 func (w *RPCServerWorker) StartMeter(_ string, reply *string) error {
 	if w._powerMeter.Running() {
-		*reply = "meter already running"
-		return errors.New("meter already running")
-	} else if err := w._powerMeter.Start(); err != nil {
+		*reply = "meter was already running, restarting meter"
+		if err := w._powerMeter.Stop(); err != nil {
+			*reply = err.Error()
+			return err
+		} else {
+			w._powerMeter = powerMeter.New(w.config.Wattsup)
+			return nil
+		}
+	}
+
+	if err := w._powerMeter.Start(); err != nil {
 		*reply = err.Error()
 		return err
 	} else {

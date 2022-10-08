@@ -2,8 +2,6 @@ module github.com/Nguyen-Hoa/worker
 
 go 1.17
 
-// replace github.com/Nguyen-Hoa/profile v0.0.0-20220914154622-1c9787b9a255 => ../profile
-
 require (
 	github.com/Nguyen-Hoa/job v0.1.0
 	github.com/Nguyen-Hoa/profile v1.2.5
