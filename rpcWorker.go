@@ -67,7 +67,6 @@ func (w *RPCServerWorker) StartMeter(_ string, reply *string) error {
 			return err
 		} else {
 			w._powerMeter = powerMeter.New(w.config.Wattsup)
-			return nil
 		}
 	}
 
