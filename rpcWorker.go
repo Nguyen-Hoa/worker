@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -214,7 +213,7 @@ func (w *RPCServerWorker) getRunningJobs() ([]types.Container, error) {
 	return containers, nil
 }
 
-func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]interface{}) error {
+func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string][]byte) error {
 	log.Print("ctr stats requested")
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
@@ -222,7 +221,7 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]interf
 	}
 	w.updateRunningJobs(containers)
 
-	var containerStats map[string]interface{} = make(map[string]interface{})
+	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
 		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 		if err != nil {
@@ -233,10 +232,10 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]interf
 		if err != nil {
 			log.Print(err)
 		}
-		var res map[string]interface{}
-		json.Unmarshal(raw_stats, &res)
+		var res map[string][]byte
+		// json.Unmarshal(raw_stats, &res)
 		log.Print(res)
-		containerStats[container.ID] = res
+		containerStats[container.ID] = raw_stats
 	}
 
 	log.Print(containerStats)
