@@ -145,9 +145,9 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 	}
 }
 
-func (w *ManagerWorker) ContainerStats() (map[string]string, error) {
+func (w *ManagerWorker) ContainerStats() (map[string]interface{}, error) {
 	if w.RPCServer {
-		var reply map[string]string
+		var reply map[string]interface{}
 		if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobsStats", "", &reply); err != nil {
 			log.Print(err)
 			return nil, err
