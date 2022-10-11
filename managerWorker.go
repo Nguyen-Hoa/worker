@@ -153,7 +153,14 @@ func (w *ManagerWorker) ContainerStats() (map[string][]byte, error) {
 			return nil, err
 		} else {
 			log.Print(w.Name)
-			log.Print(reply)
+			// log.Print(reply)
+			for key := range reply {
+				log.Print(key)
+
+				var stat map[string]interface{}
+				json.Unmarshal(reply[key], &stat)
+				log.Print(stat)
+			}
 			return reply, nil
 		}
 	}

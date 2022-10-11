@@ -232,13 +232,9 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string][]byte
 		if err != nil {
 			log.Print(err)
 		}
-		var res map[string][]byte
-		// json.Unmarshal(raw_stats, &res)
-		log.Print(res)
 		containerStats[container.ID] = raw_stats
 	}
 
-	log.Print(containerStats)
 	*reply = containerStats
 	return nil
 }
