@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"time"
 
@@ -212,22 +213,30 @@ func (w *RPCServerWorker) getRunningJobs() ([]types.Container, error) {
 	return containers, nil
 }
 
-func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]types.ContainerStats) error {
+func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string]string) error {
+	log.Print("ctr stats requested")
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return err
 	}
 	w.updateRunningJobs(containers)
 
-	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
+	var containerStats map[string]string = make(map[string]string)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStats(context.Background(), container.ID, false)
+		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 		if err != nil {
 			log.Println("Failed to get stats for {}", container.ID)
 		}
-		containerStats[container.ID] = stats
+		defer stats.Body.Close()
+		raw_stats, err := io.ReadAll(stats.Body)
+		if err != nil {
+			log.Print(err)
+		}
+		log.Print(raw_stats)
+		containerStats[container.ID] = string(raw_stats)
 	}
 
+	log.Print(containerStats)
 	*reply = containerStats
 	return nil
 }
