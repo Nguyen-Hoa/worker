@@ -122,6 +122,22 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 			w.RunningJobs.InitFromMap(reply)
 		}()
 
+		pollWaitGroup.Add(1)
+		go func() {
+			defer pollWaitGroup.Done()
+			var reply map[string][]byte
+			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobsStats", "", &reply); err != nil {
+				log.Print(err)
+				errs = append(errs, err.Error())
+			} else {
+				for key := range reply {
+					var stat map[string]interface{}
+					json.Unmarshal(reply[key], &stat)
+					w.RunningJobStats[key] = stat
+				}
+			}
+		}()
+
 		pollWaitGroup.Wait()
 
 		if len(errs) > 0 {

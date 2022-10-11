@@ -214,7 +214,6 @@ func (w *RPCServerWorker) getRunningJobs() ([]types.Container, error) {
 }
 
 func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string][]byte) error {
-	log.Print("ctr stats requested")
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return err
