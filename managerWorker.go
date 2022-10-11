@@ -39,6 +39,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
+	w.RunningJobStats = make(map[string]interface{})
 	w.RunningJobs = job.SharedDockerJobsMap{}
 	w.RunningJobs.Init()
 
