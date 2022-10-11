@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	job "github.com/Nguyen-Hoa/job"
+	"github.com/docker/docker/api/types"
 )
 
 func New(config WorkerConfig) (*ManagerWorker, error) {
@@ -143,6 +144,21 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		w.stats = stats
 		return stats, nil
 	}
+}
+
+func (w *ManagerWorker) ContainerStats() (map[string]types.ContainerStats, error) {
+	if w.RPCServer {
+		var reply map[string]types.ContainerStats
+		if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
+			log.Print(err)
+			return nil, err
+		} else {
+			log.Print(w.Name)
+			log.Print(reply)
+			return reply, nil
+		}
+	}
+	return nil, nil
 }
 
 func (w *ManagerWorker) GetStats() map[string]interface{} {
