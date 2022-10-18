@@ -170,7 +170,11 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 				w.RunningJobStats[key] = stat
 			}
 		}()
+		pollWaitGroup.Wait()
 
+		if len(errs) > 0 {
+			return nil, errors.New(errs[0])
+		}
 		return w.stats, nil
 	}
 }
