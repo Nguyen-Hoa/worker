@@ -134,19 +134,44 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		}
 		return w.stats, nil
 	} else {
-		resp, err := http.Get(w.Address + "/stats")
-		if err != nil {
-			return nil, err
-		}
+		var pollWaitGroup sync.WaitGroup
+		var errs = make([]string, 0)
 
-		defer resp.Body.Close()
-		buf := new(bytes.Buffer)
-		stats := make(map[string]interface{})
-		io.Copy(buf, resp.Body)
-		json.Unmarshal(buf.Bytes(), &stats)
+		pollWaitGroup.Add(1)
+		go func() {
+			defer pollWaitGroup.Done()
+			resp, err := http.Get(w.Address + "/stats")
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			defer resp.Body.Close()
+			buf := new(bytes.Buffer)
+			stats := make(map[string]interface{})
+			io.Copy(buf, resp.Body)
+			json.Unmarshal(buf.Bytes(), &stats)
+			w.stats = stats
+		}()
 
-		w.stats = stats
-		return stats, nil
+		pollWaitGroup.Add(1)
+		go func() {
+			defer pollWaitGroup.Done()
+			resp, err := http.Get(w.Address + "/running_jobs_stats")
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+			defer resp.Body.Close()
+			buf := new(bytes.Buffer)
+			io.Copy(buf, resp.Body)
+			stats := make(map[string][]byte)
+			json.Unmarshal(buf.Bytes(), &stats)
+			for key := range stats {
+				var stat map[string]interface{}
+				json.Unmarshal(stats[key], &stat)
+				w.RunningJobStats[key] = stat
+			}
+		}()
+
+		return w.stats, nil
 	}
 }
 
@@ -157,16 +182,28 @@ func (w *ManagerWorker) ContainerStats() (map[string][]byte, error) {
 			log.Print(err)
 			return nil, err
 		} else {
-			log.Print(w.Name)
-			// log.Print(reply)
 			for key := range reply {
-				log.Print(key)
-
 				var stat map[string]interface{}
 				json.Unmarshal(reply[key], &stat)
-				log.Print(stat)
 			}
 			return reply, nil
+		}
+	} else {
+		resp, err := http.Get(w.Address + "/running_jobs_stats")
+		if err != nil {
+			log.Print(err)
+			return nil, err
+		}
+		defer resp.Body.Close()
+		buf := new(bytes.Buffer)
+		io.Copy(buf, resp.Body)
+
+		stats := make(map[string][]byte)
+		json.Unmarshal(buf.Bytes(), &stats)
+		for key := range stats {
+			var stat map[string]interface{}
+			json.Unmarshal(stats[key], &stat)
+			w.RunningJobStats[key] = stat
 		}
 	}
 	return nil, nil
