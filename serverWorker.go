@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"time"
 
@@ -35,6 +36,8 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 
 	w.RunningJobs = job.SharedDockerJobsMap{}
 	w.jobsToKill = job.SharedDockerJobsMap{}
+	w.RunningJobs.Init()
+	w.jobsToKill.Init()
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -57,10 +60,14 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 }
 
 func (w *ServerWorker) StartMeter() error {
-	// Check if another meter is running
 	if w._powerMeter.Running() {
-		return errors.New("meter already running")
-	} else if err := w._powerMeter.Start(); err != nil {
+		if err := w._powerMeter.Stop(); err != nil {
+			return err
+		} else {
+			w._powerMeter = powerMeter.New(w.config.Wattsup)
+		}
+	}
+	if err := w._powerMeter.Start(); err != nil {
 		return err
 	} else {
 		return nil
@@ -142,12 +149,11 @@ func (w *ServerWorker) StopJob(ID string) error {
 
 	ctr, _ := w.RunningJobs.Get(ID)
 	ctr.UpdateTotalRunTime(time.Now())
-
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
 	return nil
 }
 
-func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error {
+func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
 		if w.verifyContainer(container.ID) {
@@ -176,49 +182,47 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 		ids = append(ids, container.ID)
 	}
 	w.RunningJobs.Refresh(ids)
-	return nil
+	return w.RunningJobs, nil
 }
 
-func (w *ServerWorker) GetRunningJobs() ([]types.Container, error) {
+func (w *ServerWorker) GetRunningJobs() (map[string]job.DockerJob, error) {
+	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	RunningJobs, _ := w.updateGetRunningJobs(containers)
+	w.killJobs()
+	return RunningJobs.Snap(), nil
+}
+
+func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	w.updateGetRunningJobs(containers)
-	return containers, nil
-}
 
-func (w *ServerWorker) GetRunningJobsStats() (map[string]types.ContainerStats, error) {
-	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	w.updateGetRunningJobs(containers)
-
-	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
+	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStats(context.Background(), container.ID, false)
+		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 		if err != nil {
 			log.Println("Failed to get stats for {}", container.ID)
 		}
-		containerStats[container.ID] = stats
+		defer stats.Body.Close()
+		raw_stats, err := io.ReadAll(stats.Body)
+		if err != nil {
+			log.Print(err)
+		}
+		containerStats[container.ID] = raw_stats
 	}
 	return containerStats, nil
 }
 
 func (w *ServerWorker) Stats() (map[string]interface{}, error) {
-	done := make(chan bool, 1)
-	go func(done chan bool) {
-		w.GetRunningJobs()
-		w.killJobs()
-		done <- true
-	}(done)
 	stats, err := profile.Get11Stats()
 	if err != nil {
 		return nil, err
 	}
-
-	<-done
 	return stats, nil
 }
 
