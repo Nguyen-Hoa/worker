@@ -33,7 +33,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 		}
 		w.rpcClient = client
 	} else {
-		w.Address = "http://" + w.Address + ":8080"
+		w.Address = "http://" + w.Address + ":3499"
 	}
 	w.Available = false
 	w.LatestActualPower = 0
