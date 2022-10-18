@@ -114,18 +114,6 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
-			var reply map[string]job.DockerJob
-			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobs", "", &reply); err != nil {
-				log.Print(err)
-				errs = append(errs, err.Error())
-			}
-
-			w.RunningJobs.InitFromMap(reply)
-		}()
-
-		pollWaitGroup.Add(1)
-		go func() {
-			defer pollWaitGroup.Done()
 			var reply map[string][]byte
 			if err := w.rpcClient.Call("RPCServerWorker.GetRunningJobsStats", "", &reply); err != nil {
 				log.Print(err)
