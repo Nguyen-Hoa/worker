@@ -29,6 +29,7 @@ type worker struct {
 	// config
 	Name         string
 	Address      string
+	Hostname     string
 	CpuThresh    float32
 	PowerThresh  float32
 	Cores        int

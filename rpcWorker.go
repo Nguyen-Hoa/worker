@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -22,6 +24,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
+	w.Hostname, _ = os.Hostname()
 	w.CpuThresh = config.CpuThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
@@ -164,7 +167,7 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-		if w.verifyContainer(container.ID) {
+		if w.verifyContainer(container.ID) && strings.Contains(container.ID, w.Hostname) {
 			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
 				BaseJob:   base.BaseJob,
@@ -223,16 +226,18 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string][]byte
 
 	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
-		if err != nil {
-			log.Println("Failed to get stats for {}", container.ID)
+		if !strings.Contains(container.ID, w.Hostname) {
+			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
+			if err != nil {
+				log.Println("Failed to get stats for {}", container.ID)
+			}
+			defer stats.Body.Close()
+			raw_stats, err := io.ReadAll(stats.Body)
+			if err != nil {
+				log.Print(err)
+			}
+			containerStats[container.ID] = raw_stats
 		}
-		defer stats.Body.Close()
-		raw_stats, err := io.ReadAll(stats.Body)
-		if err != nil {
-			log.Print(err)
-		}
-		containerStats[container.ID] = raw_stats
 	}
 
 	*reply = containerStats

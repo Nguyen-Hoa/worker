@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -21,6 +23,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
+	w.Hostname, _ = os.Hostname()
 	w.CpuThresh = config.CpuThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
@@ -157,7 +160,9 @@ func (w *ServerWorker) StopJob(ID string) error {
 func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-		if w.verifyContainer(container.ID) {
+
+		// found existing job
+		if w.verifyContainer(container.ID) && strings.Contains(container.ID, w.Hostname) {
 			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
 				BaseJob:   base.BaseJob,
@@ -167,8 +172,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.S
 			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
 				w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
 			}
-		} else {
-			log.Println("Found an orphan job")
+		} else { // found orphan job
 			newCtr := job.DockerJob{
 				BaseJob: job.BaseJob{
 					StartTime:    time.Now(),
@@ -182,6 +186,8 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.S
 		}
 		ids = append(ids, container.ID)
 	}
+
+	// remove stale jobs
 	w.RunningJobs.Refresh(ids)
 	return w.RunningJobs, nil
 }
@@ -205,16 +211,18 @@ func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 
 	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
-		if err != nil {
-			log.Println("Failed to get stats for {}", container.ID)
+		if !strings.Contains(container.ID, w.Hostname) {
+			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
+			if err != nil {
+				log.Println("Failed to get stats for {}", container.ID)
+			}
+			defer stats.Body.Close()
+			raw_stats, err := io.ReadAll(stats.Body)
+			if err != nil {
+				log.Print(err)
+			}
+			containerStats[container.ID] = raw_stats
 		}
-		defer stats.Body.Close()
-		raw_stats, err := io.ReadAll(stats.Body)
-		if err != nil {
-			log.Print(err)
-		}
-		containerStats[container.ID] = raw_stats
 	}
 	return containerStats, nil
 }
