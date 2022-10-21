@@ -106,10 +106,10 @@ func (w *ServerWorker) verifyContainer(ID string) bool {
 	return false
 }
 
-func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error {
+func (w *ServerWorker) StartJob(image string, cmd []string, duration int) (string, error) {
 	// verify image exists
 	if !w.verifyImage(image) {
-		return errors.New("image does not exist")
+		return "", errors.New("image does not exist")
 	}
 
 	// create image
@@ -118,15 +118,17 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 		Cmd:   cmd,
 	}, nil, nil, nil, "")
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return "", err
 	}
-
-	log.Print("starting job", duration)
 
 	// start image
 	if err := w._docker.ContainerStart(context.Background(), resp.ID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
+		log.Print(err)
+		return "", err
 	}
+
+	log.Print("started job ", duration)
 
 	// update list of running jobs
 	newCtr := job.DockerJob{
@@ -139,7 +141,7 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 	}
 	w.RunningJobs.Update(resp.ID, newCtr)
 
-	return nil
+	return resp.ID, nil
 }
 
 func (w *ServerWorker) StopJob(ID string) error {
