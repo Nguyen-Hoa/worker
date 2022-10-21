@@ -236,6 +236,14 @@ func (w *ServerWorker) Stats() (map[string]interface{}, error) {
 	return stats, nil
 }
 
+func (w *ServerWorker) ReducedStats() (map[string]interface{}, error) {
+	stats, err := profile.GetCPUAndMemStats()
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
 func (w *ServerWorker) IsAvailable() bool {
 	return w.Available
 }

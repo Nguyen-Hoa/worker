@@ -254,6 +254,16 @@ func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
 	return nil
 }
 
+func (w *RPCServerWorker) ReducedStats(_ string, reply *map[string]interface{}) error {
+	if stats, err := profile.GetCPUAndMemStats(); err == nil {
+		*reply = stats
+	} else {
+		log.Print(err)
+		return err
+	}
+	return nil
+}
+
 func (w *RPCServerWorker) IsAvailable(_ string, reply *bool) error {
 	*reply = w.Available
 	return nil

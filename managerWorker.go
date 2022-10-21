@@ -95,7 +95,7 @@ func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error
 	return nil
 }
 
-func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
+func (w *ManagerWorker) Stats(reduced bool) (map[string]interface{}, error) {
 	if w.RPCServer {
 		var pollWaitGroup sync.WaitGroup
 		var errs = make([]string, 0)
@@ -103,8 +103,12 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
+			var endpoint string = "RPCServerWorker.Poll"
+			if reduced {
+				endpoint = "RPCServerWorker.ReducedStats"
+			}
 			var reply map[string]interface{}
-			if err := w.rpcClient.Call("RPCServerWorker.Poll", "", &reply); err != nil {
+			if err := w.rpcClient.Call(endpoint, "", &reply); err != nil {
 				log.Print(err)
 				errs = append(errs, err.Error())
 			}
@@ -140,7 +144,11 @@ func (w *ManagerWorker) Stats() (map[string]interface{}, error) {
 		pollWaitGroup.Add(1)
 		go func() {
 			defer pollWaitGroup.Done()
-			resp, err := http.Get(w.Address + "/stats")
+			var endpoint string = "/stats"
+			if reduced {
+				endpoint = "/reduced-stats"
+			}
+			resp, err := http.Get(w.Address + endpoint)
 			if err != nil {
 				errs = append(errs, err.Error())
 			}
