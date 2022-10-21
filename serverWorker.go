@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"time"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -164,7 +163,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.S
 	for _, container := range containers {
 
 		// found existing job
-		if w.verifyContainer(container.ID) && strings.Contains(container.ID, w.Hostname) {
+		if w.verifyContainer(container.ID) && container.ID != w.Hostname {
 			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
 				BaseJob:   base.BaseJob,
@@ -213,7 +212,7 @@ func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 
 	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		if !strings.Contains(container.ID, w.Hostname) {
+		if container.ID != w.Hostname {
 			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 			if err != nil {
 				log.Println("Failed to get stats for {}", container.ID)
