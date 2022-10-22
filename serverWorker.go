@@ -212,6 +212,7 @@ func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 
 	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
+		log.Print(container.ID[:13], w.Hostname, container.ID[:13] != w.Hostname)
 		if container.ID[:13] != w.Hostname {
 			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 			if err != nil {
