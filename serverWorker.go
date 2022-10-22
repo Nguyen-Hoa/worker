@@ -211,6 +211,7 @@ func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 	w.updateGetRunningJobs(containers)
 
 	var containerStats map[string][]byte = make(map[string][]byte)
+	log.Print(containers)
 	for _, container := range containers {
 		log.Print(container.ID[:13], w.Hostname, container.ID[:13] != w.Hostname)
 		if container.ID[:13] != w.Hostname {
