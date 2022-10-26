@@ -269,6 +269,7 @@ func (w *ManagerWorker) PowerMeterOn() bool {
 			log.Print(err)
 			return false
 		}
+		return available
 	} else {
 		resp, err := http.Get(w.Address + "/has-power-meter")
 		if err != nil {
