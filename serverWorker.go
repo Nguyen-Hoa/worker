@@ -27,7 +27,6 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange
-	w.ManagerView = config.ManagerView
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort
 	w.HTTPPort = config.HTTPPort
@@ -47,24 +46,21 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 		w.HasPowerMeter = false
 	} else {
 		w.HasPowerMeter = true
-	}
-
-	if !w.ManagerView {
 		// Initialize Power Meter
 		w._powerMeter = powerMeter.New(config.Wattsup)
-
-		// Initialize Docker API
-		cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-		if err != nil {
-			return err
-		}
-		w._docker = cli
-		containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-		if err != nil {
-			return err
-		}
-		w.updateGetRunningJobs(containers)
 	}
+
+	// Initialize Docker API
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	w._docker = cli
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return err
+	}
+	w.updateGetRunningJobs(containers)
 
 	return nil
 }

@@ -22,7 +22,6 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange
-	w.ManagerView = config.ManagerView
 
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort

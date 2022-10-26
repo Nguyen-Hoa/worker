@@ -16,7 +16,6 @@ type WorkerConfig struct {
 	PowerThresh  float32                `json:"powerThresh"`
 	Cores        int                    `json:"cores"`
 	DynamicRange []float32              `json:"dynamicRange"`
-	ManagerView  bool                   `json:"managerView"`
 	RPCServer    bool                   `json:"rpcServer"`
 	RPCPort      string                 `json:"rpcPort"`
 	HTTPPort     string                 `json:"httpPort"`
@@ -35,7 +34,6 @@ type worker struct {
 	PowerThresh   float32
 	Cores         int
 	DynamicRange  []float32
-	ManagerView   bool
 	RPCServer     bool
 	RPCPort       string
 	HTTPPort      string
