@@ -45,6 +45,16 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 		return nil, errors.New("worker not available, check that worker is running")
 	}
 
+	if config.Wattsup.Path == "" {
+		w.HasPowerMeter = false
+	} else {
+		w.HasPowerMeter = true
+		if err := w.StartMeter(); err != nil {
+			log.Println("Worker meter failure", w.Name)
+			return nil, err
+		}
+	}
+
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0

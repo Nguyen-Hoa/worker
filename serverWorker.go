@@ -43,6 +43,12 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.RunningJobs.Init()
 	w.jobsToKill.Init()
 
+	if config.Wattsup.Path == "" {
+		w.HasPowerMeter = false
+	} else {
+		w.HasPowerMeter = true
+	}
+
 	if !w.ManagerView {
 		// Initialize Power Meter
 		w._powerMeter = powerMeter.New(config.Wattsup)
