@@ -8,6 +8,7 @@ import (
 	"log"
 	http "net/http"
 	"net/rpc"
+	"strings"
 	"sync"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -280,6 +281,12 @@ func (w *ManagerWorker) PowerMeterOn() bool {
 		if resp.StatusCode != 200 {
 			return false
 		}
+		buf := new(bytes.Buffer)
+		io.Copy(buf, resp.Body)
+		if strings.Contains(buf.String(), "not running") {
+			return false
+		} else {
+			return true
+		}
 	}
-	return true
 }
