@@ -30,6 +30,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.ManagerView = config.ManagerView
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort
+	w.HTTPPort = config.HTTPPort
 
 	w.Available = false
 	w.LatestActualPower = 0

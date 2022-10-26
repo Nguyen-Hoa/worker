@@ -19,6 +19,7 @@ type WorkerConfig struct {
 	ManagerView  bool                   `json:"managerView"`
 	RPCServer    bool                   `json:"rpcServer"`
 	RPCPort      string                 `json:"rpcPort"`
+	HTTPPort     string                 `json:"httpPort"`
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
@@ -37,6 +38,7 @@ type worker struct {
 	ManagerView  bool
 	RPCServer    bool
 	RPCPort      string
+	HTTPPort     string
 	rpcClient    *rpc.Client
 	config       WorkerConfig
 

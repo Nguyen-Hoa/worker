@@ -23,19 +23,28 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange
 	w.ManagerView = config.ManagerView
+
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort
-	if config.RPCServer {
+	w.HTTPPort = config.HTTPPort
+	if config.RPCServer && config.RPCPort != "" {
 		client, err := rpc.DialHTTP("tcp", config.Address+config.RPCPort)
 		if err != nil {
 			log.Print(err)
 			return nil, err
 		}
 		w.rpcClient = client
+	} else if config.HTTPPort != "" {
+		w.Address = "http://" + w.Address + w.HTTPPort
 	} else {
-		w.Address = "http://" + w.Address + ":3499"
+		return nil, errors.New("no valid rpc or http configuration provided")
 	}
-	w.Available = false
+
+	w.Available = w.IsAvailable()
+	if !w.Available {
+		return nil, errors.New("worker not available, check that worker is running")
+	}
+
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
