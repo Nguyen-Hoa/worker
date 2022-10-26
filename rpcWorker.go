@@ -169,30 +169,32 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-		if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
-			base, _ := w.RunningJobs.Get(container.ID)
-			updatedCtr := job.DockerJob{
-				BaseJob:   base.BaseJob,
-				Container: container,
+		if container.ID[:12] != w.Hostname {
+			if w.verifyContainer(container.ID) {
+				base, _ := w.RunningJobs.Get(container.ID)
+				updatedCtr := job.DockerJob{
+					BaseJob:   base.BaseJob,
+					Container: container,
+				}
+				updatedCtr.UpdateTotalRunTime(time.Now())
+				if updatedCtr.TotalRunTime >= updatedCtr.Duration {
+					w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
+				}
+			} else {
+				log.Println("Found an orphan job")
+				newCtr := job.DockerJob{
+					BaseJob: job.BaseJob{
+						StartTime:    time.Now(),
+						TotalRunTime: time.Duration(0),
+						Duration:     time.Duration(-1),
+					},
+					Container: types.Container{ID: container.ID},
+				}
+				w.jobsToKill.Update(newCtr.ID, newCtr)
+				w.RunningJobs.Update(container.ID, newCtr)
 			}
-			updatedCtr.UpdateTotalRunTime(time.Now())
-			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
-				w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
-			}
-		} else {
-			log.Println("Found an orphan job")
-			newCtr := job.DockerJob{
-				BaseJob: job.BaseJob{
-					StartTime:    time.Now(),
-					TotalRunTime: time.Duration(0),
-					Duration:     time.Duration(-1),
-				},
-				Container: types.Container{ID: container.ID},
-			}
-			w.jobsToKill.Update(newCtr.ID, newCtr)
-			w.RunningJobs.Update(container.ID, newCtr)
+			ids = append(ids, container.ID)
 		}
-		ids = append(ids, container.ID)
 	}
 	w.RunningJobs.Refresh(ids)
 	return w.RunningJobs, nil

@@ -164,31 +164,32 @@ func (w *ServerWorker) StopJob(ID string) error {
 func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-
-		// found existing job
-		if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
-			base, _ := w.RunningJobs.Get(container.ID)
-			updatedCtr := job.DockerJob{
-				BaseJob:   base.BaseJob,
-				Container: container,
+		if container.ID[:12] != w.Hostname {
+			// found existing job
+			if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
+				base, _ := w.RunningJobs.Get(container.ID)
+				updatedCtr := job.DockerJob{
+					BaseJob:   base.BaseJob,
+					Container: container,
+				}
+				updatedCtr.UpdateTotalRunTime(time.Now())
+				if updatedCtr.TotalRunTime >= updatedCtr.Duration {
+					w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
+				}
+			} else { // found orphan job
+				newCtr := job.DockerJob{
+					BaseJob: job.BaseJob{
+						StartTime:    time.Now(),
+						TotalRunTime: time.Duration(0),
+						Duration:     time.Duration(-1),
+					},
+					Container: types.Container{ID: container.ID},
+				}
+				w.jobsToKill.Update(newCtr.ID, newCtr)
+				w.RunningJobs.Update(container.ID, newCtr)
 			}
-			updatedCtr.UpdateTotalRunTime(time.Now())
-			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
-				w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
-			}
-		} else { // found orphan job
-			newCtr := job.DockerJob{
-				BaseJob: job.BaseJob{
-					StartTime:    time.Now(),
-					TotalRunTime: time.Duration(0),
-					Duration:     time.Duration(-1),
-				},
-				Container: types.Container{ID: container.ID},
-			}
-			w.jobsToKill.Update(newCtr.ID, newCtr)
-			w.RunningJobs.Update(container.ID, newCtr)
+			ids = append(ids, container.ID)
 		}
-		ids = append(ids, container.ID)
 	}
 
 	// remove stale jobs
