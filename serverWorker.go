@@ -3,7 +3,9 @@ package worker
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
+	"os"
 	"time"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -20,6 +22,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
+	w.Hostname, _ = os.Hostname()
 	w.CpuThresh = config.CpuThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
@@ -27,14 +30,24 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.ManagerView = config.ManagerView
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort
+	w.HTTPPort = config.HTTPPort
 
 	w.Available = false
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
 
+	w.RunningJobStats = make(map[string]interface{})
 	w.RunningJobs = job.SharedDockerJobsMap{}
 	w.jobsToKill = job.SharedDockerJobsMap{}
+	w.RunningJobs.Init()
+	w.jobsToKill.Init()
+
+	if config.Wattsup.Path == "" {
+		w.HasPowerMeter = false
+	} else {
+		w.HasPowerMeter = true
+	}
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -57,10 +70,14 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 }
 
 func (w *ServerWorker) StartMeter() error {
-	// Check if another meter is running
 	if w._powerMeter.Running() {
-		return errors.New("meter already running")
-	} else if err := w._powerMeter.Start(); err != nil {
+		if err := w._powerMeter.Stop(); err != nil {
+			return err
+		} else {
+			w._powerMeter = powerMeter.New(w.config.Wattsup)
+		}
+	}
+	if err := w._powerMeter.Start(); err != nil {
 		return err
 	} else {
 		return nil
@@ -95,10 +112,10 @@ func (w *ServerWorker) verifyContainer(ID string) bool {
 	return false
 }
 
-func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error {
+func (w *ServerWorker) StartJob(image string, cmd []string, duration int) (string, error) {
 	// verify image exists
 	if !w.verifyImage(image) {
-		return errors.New("image does not exist")
+		return "", errors.New("image does not exist")
 	}
 
 	// create image
@@ -107,15 +124,17 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 		Cmd:   cmd,
 	}, nil, nil, nil, "")
 	if err != nil {
-		panic(err)
+		log.Print(err)
+		return "", err
 	}
-
-	log.Print("starting job", duration)
 
 	// start image
 	if err := w._docker.ContainerStart(context.Background(), resp.ID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
+		log.Print(err)
+		return "", err
 	}
+
+	log.Print("started job ", duration)
 
 	// update list of running jobs
 	newCtr := job.DockerJob{
@@ -128,7 +147,7 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) error 
 	}
 	w.RunningJobs.Update(resp.ID, newCtr)
 
-	return nil
+	return resp.ID, nil
 }
 
 func (w *ServerWorker) StopJob(ID string) error {
@@ -142,15 +161,16 @@ func (w *ServerWorker) StopJob(ID string) error {
 
 	ctr, _ := w.RunningJobs.Get(ID)
 	ctr.UpdateTotalRunTime(time.Now())
-
 	log.Printf("Stopped %s, total run time: %s", ID, ctr.TotalRunTime)
 	return nil
 }
 
-func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error {
+func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-		if w.verifyContainer(container.ID) {
+
+		// found existing job
+		if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
 			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
 				BaseJob:   base.BaseJob,
@@ -160,8 +180,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 			if updatedCtr.TotalRunTime >= updatedCtr.Duration {
 				w.jobsToKill.Update(updatedCtr.ID, updatedCtr)
 			}
-		} else {
-			log.Println("Found an orphan job")
+		} else { // found orphan job
 			newCtr := job.DockerJob{
 				BaseJob: job.BaseJob{
 					StartTime:    time.Now(),
@@ -175,50 +194,60 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) error 
 		}
 		ids = append(ids, container.ID)
 	}
+
+	// remove stale jobs
 	w.RunningJobs.Refresh(ids)
-	return nil
+	return w.RunningJobs, nil
 }
 
-func (w *ServerWorker) GetRunningJobs() ([]types.Container, error) {
+func (w *ServerWorker) GetRunningJobs() (map[string]job.DockerJob, error) {
+	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	RunningJobs, _ := w.updateGetRunningJobs(containers)
+	w.killJobs()
+	return RunningJobs.Snap(), nil
+}
+
+func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	w.updateGetRunningJobs(containers)
-	return containers, nil
-}
 
-func (w *ServerWorker) GetRunningJobsStats() (map[string]types.ContainerStats, error) {
-	containers, err := w._docker.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	w.updateGetRunningJobs(containers)
-
-	var containerStats map[string]types.ContainerStats = make(map[string]types.ContainerStats)
+	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStats(context.Background(), container.ID, false)
-		if err != nil {
-			log.Println("Failed to get stats for {}", container.ID)
+		if container.ID[:12] != w.Hostname {
+			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
+			if err != nil {
+				log.Println("Failed to get stats for {}", container.ID)
+			}
+			defer stats.Body.Close()
+			raw_stats, err := io.ReadAll(stats.Body)
+			if err != nil {
+				log.Print(err)
+			}
+			containerStats[container.ID] = raw_stats
 		}
-		containerStats[container.ID] = stats
 	}
 	return containerStats, nil
 }
 
 func (w *ServerWorker) Stats() (map[string]interface{}, error) {
-	done := make(chan bool, 1)
-	go func(done chan bool) {
-		w.GetRunningJobs()
-		w.killJobs()
-		done <- true
-	}(done)
 	stats, err := profile.Get11Stats()
 	if err != nil {
 		return nil, err
 	}
+	return stats, nil
+}
 
-	<-done
+func (w *ServerWorker) ReducedStats() (map[string]interface{}, error) {
+	stats, err := profile.GetCPUAndMemStats()
+	if err != nil {
+		return nil, err
+	}
 	return stats, nil
 }
 

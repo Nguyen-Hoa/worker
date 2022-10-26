@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	job "github.com/Nguyen-Hoa/job"
@@ -22,6 +23,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	// Intialize Variables
 	w.Name = config.Name
 	w.Address = config.Address
+	w.Hostname, _ = os.Hostname()
 	w.CpuThresh = config.CpuThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
@@ -29,6 +31,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	w.ManagerView = config.ManagerView
 	w.RPCServer = config.RPCServer
 	w.RPCPort = config.RPCPort
+	w.HTTPPort = config.HTTPPort
 
 	w.Available = false
 	w.LatestActualPower = 0
@@ -40,6 +43,12 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	w.jobsToKill = job.SharedDockerJobsMap{}
 	w.RunningJobs.Init()
 	w.jobsToKill.Init()
+
+	if config.Wattsup.Path == "" {
+		w.HasPowerMeter = false
+	} else {
+		w.HasPowerMeter = true
+	}
 
 	if !w.ManagerView {
 		// Initialize Power Meter
@@ -164,7 +173,7 @@ func (w *RPCServerWorker) stopJob(ID string) error {
 func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (job.SharedDockerJobsMap, error) {
 	ids := make([]string, 0)
 	for _, container := range containers {
-		if w.verifyContainer(container.ID) {
+		if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
 			base, _ := w.RunningJobs.Get(container.ID)
 			updatedCtr := job.DockerJob{
 				BaseJob:   base.BaseJob,
@@ -223,16 +232,18 @@ func (w *RPCServerWorker) GetRunningJobsStats(_ string, reply *map[string][]byte
 
 	var containerStats map[string][]byte = make(map[string][]byte)
 	for _, container := range containers {
-		stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
-		if err != nil {
-			log.Println("Failed to get stats for {}", container.ID)
+		if container.ID[:12] != w.Hostname {
+			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
+			if err != nil {
+				log.Println("Failed to get stats for {}", container.ID)
+			}
+			defer stats.Body.Close()
+			raw_stats, err := io.ReadAll(stats.Body)
+			if err != nil {
+				log.Print(err)
+			}
+			containerStats[container.ID] = raw_stats
 		}
-		defer stats.Body.Close()
-		raw_stats, err := io.ReadAll(stats.Body)
-		if err != nil {
-			log.Print(err)
-		}
-		containerStats[container.ID] = raw_stats
 	}
 
 	*reply = containerStats
@@ -247,6 +258,16 @@ func (w *RPCServerWorker) Poll(_ string, reply *map[string]interface{}) error {
 		return err
 	}
 
+	return nil
+}
+
+func (w *RPCServerWorker) ReducedStats(_ string, reply *map[string]interface{}) error {
+	if stats, err := profile.GetCPUAndMemStats(); err == nil {
+		*reply = stats
+	} else {
+		log.Print(err)
+		return err
+	}
 	return nil
 }
 

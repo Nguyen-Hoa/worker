@@ -19,6 +19,7 @@ type WorkerConfig struct {
 	ManagerView  bool                   `json:"managerView"`
 	RPCServer    bool                   `json:"rpcServer"`
 	RPCPort      string                 `json:"rpcPort"`
+	HTTPPort     string                 `json:"httpPort"`
 	Wattsup      powerMeter.WattsupArgs `json:"wattsup"`
 }
 
@@ -27,17 +28,20 @@ Base Worker
 ----------------------*/
 type worker struct {
 	// config
-	Name         string
-	Address      string
-	CpuThresh    float32
-	PowerThresh  float32
-	Cores        int
-	DynamicRange []float32
-	ManagerView  bool
-	RPCServer    bool
-	RPCPort      string
-	rpcClient    *rpc.Client
-	config       WorkerConfig
+	Name          string
+	Address       string
+	Hostname      string
+	CpuThresh     float32
+	PowerThresh   float32
+	Cores         int
+	DynamicRange  []float32
+	ManagerView   bool
+	RPCServer     bool
+	RPCPort       string
+	HTTPPort      string
+	rpcClient     *rpc.Client
+	config        WorkerConfig
+	HasPowerMeter bool
 
 	// status
 	Available            bool
