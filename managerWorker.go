@@ -45,10 +45,8 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 		return nil, errors.New("worker not available, check that worker is running")
 	}
 
-	if config.Wattsup.Path == "" {
-		w.HasPowerMeter = false
-	} else {
-		w.HasPowerMeter = true
+	w.HasPowerMeter = w.PowerMeterOn()
+	if w.HasPowerMeter {
 		if err := w.StartMeter(); err != nil {
 			log.Println("Worker meter failure", w.Name)
 			return nil, err
@@ -253,6 +251,27 @@ func (w *ManagerWorker) IsAvailable() bool {
 		}
 	} else {
 		resp, err := http.Get(w.Address + "/available")
+		if err != nil {
+			log.Fatalln(err)
+			return false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return false
+		}
+	}
+	return true
+}
+
+func (w *ManagerWorker) PowerMeterOn() bool {
+	if w.RPCServer {
+		var available bool
+		if err := w.rpcClient.Call("RPCServerWorker.PowerMeterOn", "", &available); err != nil {
+			log.Print(err)
+			return false
+		}
+	} else {
+		resp, err := http.Get(w.Address + "/has-power-meter")
 		if err != nil {
 			log.Fatalln(err)
 			return false

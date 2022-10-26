@@ -255,6 +255,10 @@ func (w *ServerWorker) IsAvailable() bool {
 	return w.Available
 }
 
+func (w *ServerWorker) PowerMeterOn() bool {
+	return w.HasPowerMeter
+}
+
 func (w *ServerWorker) killJobs() error {
 	for _, id := range w.jobsToKill.Keys() {
 		if err := w.StopJob(id); err != nil {

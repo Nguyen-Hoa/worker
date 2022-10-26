@@ -276,6 +276,11 @@ func (w *RPCServerWorker) IsAvailable(_ string, reply *bool) error {
 	return nil
 }
 
+func (w *RPCServerWorker) PowerMeterOn(_ string, reply *bool) error {
+	*reply = w.HasPowerMeter
+	return nil
+}
+
 func (w *RPCServerWorker) killJobs() error {
 	for _, id := range w.jobsToKill.Keys() {
 		if err := w.stopJob(id); err != nil {
