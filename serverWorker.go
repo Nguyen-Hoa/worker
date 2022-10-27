@@ -193,6 +193,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.S
 	}
 
 	// remove stale jobs
+	w.killJobs()
 	w.RunningJobs.Refresh(ids)
 	return w.RunningJobs, nil
 }
@@ -203,7 +204,6 @@ func (w *ServerWorker) GetRunningJobs() (map[string]job.DockerJob, error) {
 		return nil, err
 	}
 	RunningJobs, _ := w.updateGetRunningJobs(containers)
-	w.killJobs()
 	return RunningJobs.Snap(), nil
 }
 

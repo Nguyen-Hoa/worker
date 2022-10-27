@@ -196,6 +196,7 @@ func (w *RPCServerWorker) updateRunningJobs(containers []types.Container) (job.S
 			ids = append(ids, container.ID)
 		}
 	}
+	w.killJobs()
 	w.RunningJobs.Refresh(ids)
 	return w.RunningJobs, nil
 }
@@ -207,7 +208,6 @@ func (w *RPCServerWorker) GetRunningJobs(_ string, reply *map[string]job.DockerJ
 	}
 
 	RunningJobs, _ := w.updateRunningJobs(containers)
-	w.killJobs()
 	*reply = RunningJobs.Snap()
 	return nil
 }
