@@ -189,13 +189,9 @@ func (w *ManagerWorker) Stats(reduced bool) (map[string]interface{}, error) {
 			io.Copy(buf, resp.Body)
 			stats := make(map[string]interface{})
 			json.Unmarshal(buf.Bytes(), &stats)
-			log.Print(stats)
-			for key := range stats {
-				w.RunningJobStats[key] = stats[key]
-			}
+			w.RunningJobStats = stats
 		}()
 		pollWaitGroup.Wait()
-
 		if len(errs) > 0 {
 			return nil, errors.New(errs[0])
 		}
