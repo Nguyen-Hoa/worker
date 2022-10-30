@@ -166,7 +166,7 @@ func (w *ServerWorker) updateGetRunningJobs(containers []types.Container) (job.S
 	for _, container := range containers {
 		if container.ID[:12] != w.Hostname {
 			// found existing job
-			if w.verifyContainer(container.ID) && container.ID[:12] != w.Hostname {
+			if w.verifyContainer(container.ID) {
 				base, _ := w.RunningJobs.Get(container.ID)
 				updatedCtr := job.DockerJob{
 					BaseJob:   base.BaseJob,
