@@ -77,18 +77,25 @@ func (w *ManagerWorker) StartMeter() error {
 	return nil
 }
 
-func (w *ManagerWorker) StopMeter() error {
+func (w *ManagerWorker) StopMeter() (string, error) {
+	var reply string
 	if w.RPCServer {
-		var reply string
 		if err := w.rpcClient.Call("RPCServerWorker.StopMeter", "", &reply); err != nil {
-			return err
+			return "", err
 		}
 	} else {
 		if res, err := http.Post(w.Address+"/meter-stop", "application/json", bytes.NewBufferString("")); res.StatusCode != 200 {
-			return err
+			return "", err
+		} else {
+			defer res.Body.Close()
+			buf := new(bytes.Buffer)
+			io.Copy(buf, res.Body)
+			body := make(map[string]interface{})
+			json.Unmarshal(buf.Bytes(), &body)
+			reply = body["path"].(string)
 		}
 	}
-	return nil
+	return reply, nil
 }
 
 func (w *ManagerWorker) StartJob(image string, cmd []string, duration int) error {
