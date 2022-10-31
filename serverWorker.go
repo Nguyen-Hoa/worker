@@ -65,6 +65,10 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	return nil
 }
 
+func (w *ServerWorker) GetMeterPath() string {
+	return w._powerMeter.Fullpath
+}
+
 func (w *ServerWorker) StartMeter() error {
 	if w._powerMeter.Running() {
 		if err := w._powerMeter.Stop(); err != nil {

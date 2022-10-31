@@ -10,6 +10,10 @@ github.com/Nguyen-Hoa/profile v1.2.7 h1:n/QoyrYS343AEWdRoO0ZZdYr5zxjNqr/xO9JXwuL
 github.com/Nguyen-Hoa/profile v1.2.7/go.mod h1:VVdNlhWM+Purjxi87hCCQnedjOBBE7dqvlKU32Tgydg=
 github.com/Nguyen-Hoa/wattsup v1.4.1 h1:aiId0st4WGkVkHbeYYjUQYaIJfmyNNX7dtQmc2un9FU=
 github.com/Nguyen-Hoa/wattsup v1.4.1/go.mod h1:J7uo51q7RcgqJe/Xk8YHiytVkY0jlFgoxtvYAlzxiEo=
+github.com/Nguyen-Hoa/wattsup v1.4.2 h1:+PtbAGc2ZvTE9Ms0w8664aAT21gTNBoglyrAOfxJb0w=
+github.com/Nguyen-Hoa/wattsup v1.4.2/go.mod h1:J7uo51q7RcgqJe/Xk8YHiytVkY0jlFgoxtvYAlzxiEo=
+github.com/Nguyen-Hoa/wattsup v1.5.0 h1:2cVoFn3YqMpHDomVrG59xOdJT1DvMd1ml0o+8EI74Fo=
+github.com/Nguyen-Hoa/wattsup v1.5.0/go.mod h1:J7uo51q7RcgqJe/Xk8YHiytVkY0jlFgoxtvYAlzxiEo=
 github.com/creack/pty v1.1.11/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

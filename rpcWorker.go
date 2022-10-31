@@ -66,6 +66,11 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	return nil
 }
 
+func (w *RPCServerWorker) GetMeterPath(_ string, reply *string) error {
+	*reply = w._powerMeter.Fullpath
+	return nil
+}
+
 func (w *RPCServerWorker) StartMeter(_ string, reply *string) error {
 	if w._powerMeter.Running() {
 		*reply = "meter was already running, restarting meter"
