@@ -119,10 +119,18 @@ func (w *ServerWorker) StartJob(image string, cmd []string, duration int) (strin
 	}
 
 	// create image
-	resp, err := w._docker.ContainerCreate(context.Background(), &container.Config{
-		Image: image,
-		Cmd:   cmd,
-	}, nil, nil, nil, "")
+	resp, err := w._docker.ContainerCreate(context.Background(),
+		&container.Config{
+			Image: image,
+			Cmd:   cmd,
+		},
+		&container.HostConfig{
+			AutoRemove: true,
+		},
+		nil,
+		nil,
+		"",
+	)
 	if err != nil {
 		log.Print(err)
 		return "", err
