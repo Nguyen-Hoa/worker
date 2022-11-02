@@ -13,6 +13,7 @@ type WorkerConfig struct {
 	Name         string                 `json:"name"`
 	Address      string                 `json:"address"`
 	CpuThresh    float32                `json:"cpuThresh"`
+	MemThresh    float32                `json:"memThresh"`
 	PowerThresh  float32                `json:"powerThresh"`
 	Cores        int                    `json:"cores"`
 	DynamicRange []float32              `json:"dynamicRange"`
@@ -31,6 +32,7 @@ type worker struct {
 	Address       string
 	Hostname      string
 	CpuThresh     float32
+	MemThresh     float32
 	PowerThresh   float32
 	Cores         int
 	DynamicRange  []float32

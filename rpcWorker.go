@@ -25,6 +25,7 @@ func (w *RPCServerWorker) Init(config WorkerConfig) error {
 	w.Address = config.Address
 	w.Hostname, _ = os.Hostname()
 	w.CpuThresh = config.CpuThresh
+	w.MemThresh = config.MemThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange

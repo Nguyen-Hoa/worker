@@ -20,6 +20,7 @@ func New(config WorkerConfig) (*ManagerWorker, error) {
 	w.Name = config.Name
 	w.Address = config.Address
 	w.CpuThresh = config.CpuThresh
+	w.MemThresh = config.MemThresh
 	w.PowerThresh = config.PowerThresh
 	w.Cores = config.Cores
 	w.DynamicRange = config.DynamicRange
