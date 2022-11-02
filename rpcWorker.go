@@ -129,10 +129,18 @@ func (w *RPCServerWorker) StartJob(j job.Job, reply *string) error {
 	}
 
 	// create image
-	resp, err := w._docker.ContainerCreate(context.Background(), &container.Config{
-		Image: j.Image,
-		Cmd:   j.Cmd,
-	}, nil, nil, nil, "")
+	resp, err := w._docker.ContainerCreate(context.Background(),
+		&container.Config{
+			Image: j.Image,
+			Cmd:   j.Cmd,
+		},
+		&container.HostConfig{
+			AutoRemove: true,
+		},
+		nil,
+		nil,
+		"",
+	)
 	if err != nil {
 		*reply = err.Error()
 		return err
