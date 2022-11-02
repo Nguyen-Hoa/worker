@@ -35,6 +35,7 @@ func (w *ServerWorker) Init(config WorkerConfig) error {
 	w.LatestActualPower = 0
 	w.LatestPredictedPower = 0
 	w.LatestCPU = 0
+	w.LatestMem = 0
 
 	w.RunningJobStats = make(map[string]interface{})
 	w.RunningJobs = job.SharedDockerJobsMap{}

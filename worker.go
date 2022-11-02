@@ -46,6 +46,7 @@ type worker struct {
 	LatestActualPower    float32
 	LatestPredictedPower float32
 	LatestCPU            float32
+	LatestMem            float32
 	stats                map[string]interface{}
 	RunningJobStats      map[string]interface{}
 	RunningJobs          job.SharedDockerJobsMap
