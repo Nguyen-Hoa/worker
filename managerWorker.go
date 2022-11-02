@@ -138,6 +138,8 @@ func (w *ManagerWorker) Stats(reduced bool) (map[string]interface{}, error) {
 				errs = append(errs, err.Error())
 			}
 			w.stats = reply
+			w.LatestCPU = float32(reply["cpupercent"].(float64))
+			w.LatestMem = float32(reply["vmem"].(float64))
 		}()
 
 		pollWaitGroup.Add(1)
@@ -183,6 +185,8 @@ func (w *ManagerWorker) Stats(reduced bool) (map[string]interface{}, error) {
 			io.Copy(buf, resp.Body)
 			json.Unmarshal(buf.Bytes(), &stats)
 			w.stats = stats
+			w.LatestCPU = float32(stats["cpupercent"].(float64))
+			w.LatestMem = float32(stats["vmem"].(float64))
 		}()
 
 		pollWaitGroup.Add(1)
