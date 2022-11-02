@@ -233,7 +233,9 @@ func (w *ServerWorker) GetRunningJobsStats() (map[string][]byte, error) {
 		if container.ID[:12] != w.Hostname {
 			stats, err := w._docker.ContainerStatsOneShot(context.Background(), container.ID)
 			if err != nil {
+				log.Print(err)
 				log.Println("Failed to get stats for {}", container.ID)
+				continue
 			}
 			defer stats.Body.Close()
 			raw_stats, err := io.ReadAll(stats.Body)
