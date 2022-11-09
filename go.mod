@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/Nguyen-Hoa/job v0.2.0
-	github.com/Nguyen-Hoa/profile v1.3.0
+	github.com/Nguyen-Hoa/profile v1.3.1
 	github.com/Nguyen-Hoa/wattsup v1.5.0
 	github.com/docker/docker v20.10.21+incompatible
 )
